@@ -72,11 +72,14 @@ purchase, nothing is bought and the balance isn't touched.
 
 All commands are under `/tradestation` and are **operator-only** by default. Each has an automatic
 permission node such as `obut.tradestation.command.tradestation.reload`. `reload`,
-`generateprices`, `checkprices` and the `item` commands also work from the server console.
+`generateprices`, `checkprices`, `spread` and the `item` / `unlockdef` commands also work from the
+server console. Together they can build a complete `tradeables.json` in game.
 
-The `item` commands do the following:
+The `item`, `unlockdef` and `spread` commands do the following:
 - They write `tradeables.json`, then reload it and refresh open station screens.
 - They warn right away if a hand-set price creates a craft-and-sell loop.
+- Station progress is stored per unlock ID: changing an amount never re-locks a completed unlock,
+  and deleting and re-adding an ID keeps progress.
 - Note: running `generateprices` again and copying its output over `tradeables.json` replaces such
   edits.
 
@@ -90,6 +93,12 @@ The `item` commands do the following:
 | `/tradestation item remove <item>` | Makes an item no longer tradeable. |
 | `/tradestation item price <item> <price>` | Changes an item's price. |
 | `/tradestation item requires <item> <spec>` | Changes an item's required unlocks, e.g. `Rock_Stone_Cobble+Wood_Oak_Trunk\|Wood_Ash_Trunk` (`+` = and, `\|` = any one of, `none` = no unlock). |
+| `/tradestation unlockdef list` / `info <id>` | Shows all unlocks / one unlock: amount, accepted items, how many items require it. |
+| `/tradestation unlockdef add <id> <amount> <items>` | Defines a new unlock; `<items>` joined with `+`, e.g. `Wood_Oak_Trunk+Wood_Ash_Trunk`. |
+| `/tradestation unlockdef amount <id> <amount>` | Changes how many items must be donated. |
+| `/tradestation unlockdef accept\|unaccept <id> <item>` | Adds/removes an item that counts as a donation (at least one stays). |
+| `/tradestation unlockdef remove <id> [--force]` | Deletes an unlock. If items require it, refused unless `--force`: then it's also taken out of their requirements. An item can end up needing no unlock at all, i.e. tradeable everywhere. |
+| `/tradestation spread <value>` | Sets the spread (`0` = fully reversible trades). |
 | `/tradestation sell` | Sells the held item type (the held stack's amount) to the station you're looking at. |
 | `/tradestation buy <item> [--quantity=N]` | Buys from the station you're looking at. |
 | `/tradestation setbalance <amount>` | Sets the balance of the station you're looking at (for testing). |

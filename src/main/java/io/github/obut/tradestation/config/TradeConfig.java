@@ -103,4 +103,47 @@ public record TradeConfig(BigDecimal spread, Map<String, Long> basePrices, Map<S
         reqs.remove(itemId);
         return new TradeConfig(spread, prices, unlocks, reqs);
     }
+
+    /** A copy with the unlock added or replaced (keeps its position if it already existed). */
+    public TradeConfig withUnlock(String unlockId, Unlock unlock) {
+        LinkedHashMap<String, Unlock> copy = new LinkedHashMap<>(unlocks);
+        copy.put(unlockId, unlock);
+        return new TradeConfig(spread, basePrices, copy, requirements);
+    }
+
+    /**
+     * A copy without the unlock. It's also removed from every item's requirements: an "any of" choice
+     * just loses that alternative; a requirement left with no alternatives is dropped.
+     */
+    public TradeConfig withoutUnlock(String unlockId) {
+        LinkedHashMap<String, Unlock> copy = new LinkedHashMap<>(unlocks);
+        copy.remove(unlockId);
+        LinkedHashMap<String, List<Set<String>>> reqs = new LinkedHashMap<>();
+        requirements.forEach((item, needed) -> {
+            List<Set<String>> kept = new java.util.ArrayList<>();
+            for (Set<String> anyOf : needed) {
+                Set<String> rest = new java.util.LinkedHashSet<>(anyOf);
+                rest.remove(unlockId);
+                if (!rest.isEmpty()) {
+                    kept.add(rest);
+                }
+            }
+            if (!kept.isEmpty()) {
+                reqs.put(item, kept);
+            }
+        });
+        return new TradeConfig(spread, basePrices, copy, reqs);
+    }
+
+    /** Items whose requirements mention the unlock. */
+    public List<String> itemsUsing(String unlockId) {
+        return basePrices.keySet().stream().filter(item -> mentions(item, unlockId)).toList();
+    }
+
+    public TradeConfig withSpread(BigDecimal newSpread) {
+        if (newSpread.signum() < 0) {
+            throw new IllegalArgumentException("spread must be >= 0");
+        }
+        return new TradeConfig(newSpread, basePrices, unlocks, requirements);
+    }
 }

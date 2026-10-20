@@ -55,7 +55,14 @@ public final class Texts {
      * a group (e.g. "Clay") uses the key {@code unlocks.<id>} from tradestation.lang.
      */
     public static Message unlockName(String unlockId) {
-        return Item.getAssetMap().getAsset(unlockId) != null ? itemName(unlockId) : of("unlocks." + unlockId);
+        if (Item.getAssetMap().getAsset(unlockId) != null) {
+            return itemName(unlockId);
+        }
+        // Unlocks made by command have no translation: show "Soft_Wood" as "Soft Wood" rather than a raw key.
+        if (I18nModule.get().getMessage(I18nModule.DEFAULT_LANGUAGE, PREFIX + "unlocks." + unlockId) == null) {
+            return Message.raw(unlockId.replace('_', ' '));
+        }
+        return of("unlocks." + unlockId);
     }
 
     /** {@link #unlockName} as server-translated plain text, for message parameters. */
@@ -64,6 +71,6 @@ public final class Texts {
             return itemNameText(unlockId, language);
         }
         String name = I18nModule.get().getMessage(language, PREFIX + "unlocks." + unlockId);
-        return name == null ? unlockId : name;
+        return name == null ? unlockId.replace('_', ' ') : name;
     }
 }

@@ -64,4 +64,30 @@ class RequirementsAndWriterTest {
         TradeConfig config = TradeConfigParser.parse(original, id -> true).config();
         assertEquals(original, TradeConfigWriter.write(config));
     }
+
+    @Test
+    void editsUnlocks() {
+        TradeConfig config = new TradeConfig(BigDecimal.ZERO, Map.of("Brick", 10L, "Planks", 20L, "Table", 40L),
+                Map.of("Stone", new TradeConfig.Unlock(500, List.of("Cobble")),
+                        "Oak", new TradeConfig.Unlock(200, List.of("Oak_Log")),
+                        "Ash", new TradeConfig.Unlock(200, List.of("Ash_Log"))),
+                Map.of("Brick", List.of(Set.of("Stone")), "Planks", List.of(Set.of("Oak", "Ash")),
+                        "Table", List.of(Set.of("Stone"), Set.of("Oak"))));
+        assertEquals(List.of("Brick", "Table"), config.itemsUsing("Stone").stream().sorted().toList());
+
+        TradeConfig changed = config.withUnlock("Stone", new TradeConfig.Unlock(300, List.of("Cobble", "Stone_Block")));
+        assertEquals(300, changed.unlocks().get("Stone").amount());
+
+        TradeConfig noOak = config.withoutUnlock("Oak");
+        assertFalse(noOak.unlocks().containsKey("Oak"));
+        assertEquals(List.of(Set.of("Ash")), noOak.requirementsOf("Planks"));     // one alternative left
+        assertEquals(List.of(Set.of("Stone")), noOak.requirementsOf("Table"));   // emptied requirement dropped
+
+        TradeConfig noStone = noOak.withoutUnlock("Stone");
+        assertEquals(List.of(), noStone.requirementsOf("Brick"));                // now needs nothing
+        assertTrue(noStone.isTradeable("Brick"));
+
+        assertEquals(0, new BigDecimal("0.5").compareTo(config.withSpread(new BigDecimal("0.5")).spread()));
+        assertThrows(IllegalArgumentException.class, () -> config.withSpread(new BigDecimal("-1")));
+    }
 }

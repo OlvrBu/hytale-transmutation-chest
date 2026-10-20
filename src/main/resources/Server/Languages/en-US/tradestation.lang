@@ -36,6 +36,32 @@ commands.tradestation.item.removed = {item} is no longer tradeable.
 commands.tradestation.item.updated = {item}: price {price, number}, requires {requires}.
 commands.tradestation.item.saveFailed = Could not save tradeables.json, nothing changed: {error}
 commands.tradestation.item.loops = Warning: {count, plural, one {1 craft-and-sell loop} other {{count, number} craft-and-sell loops}} now involve {item}, e.g. {example}. See /tradestation checkprices.
+commands.tradestation.unlockdef.desc = Edit the unlock definitions (writes tradeables.json)
+commands.tradestation.unlockdef.list.desc = List all unlocks
+commands.tradestation.unlockdef.info.desc = Show one unlock
+commands.tradestation.unlockdef.add.desc = Define a new unlock
+commands.tradestation.unlockdef.remove.desc = Delete an unlock (--force also removes it from item requirements)
+commands.tradestation.unlockdef.amount.desc = Change how many items must be donated
+commands.tradestation.unlockdef.accept.desc = Add an item that counts as a donation
+commands.tradestation.unlockdef.unaccept.desc = Remove an item from the accepted donations
+commands.tradestation.unlockdef.id.desc = Unlock ID (letters, digits, _)
+commands.tradestation.unlockdef.amount.arg = Items to donate, a positive whole number
+commands.tradestation.unlockdef.items.arg = Accepted items, joined with +, e.g. Wood_Oak_Trunk+Wood_Ash_Trunk
+commands.tradestation.unlockdef.force.desc = Also remove the unlock from the items that require it
+commands.tradestation.unlockdef.listHeader = {count, plural, one {1 unlock} other {{count, number} unlocks}}:
+commands.tradestation.unlockdef.info = {unlock}: donate {amount, number} of {accepts}; required by {items, plural, one {1 item} other {{items, number} items}}
+commands.tradestation.unlockdef.exists = An unlock called {unlock} already exists.
+commands.tradestation.unlockdef.badId = Unlock IDs may only contain letters, digits and _.
+commands.tradestation.unlockdef.badAmount = The amount must be a positive whole number.
+commands.tradestation.unlockdef.unknownItem = There is no item called {item}.
+commands.tradestation.unlockdef.noItems = Give at least one accepted item.
+commands.tradestation.unlockdef.lastItem = An unlock must accept at least one item.
+commands.tradestation.unlockdef.inUse = {unlock} is required by {count, plural, one {1 item} other {{count, number} items}} (e.g. {examples}). Use --force to remove it from them too.
+commands.tradestation.unlockdef.removed = Removed {unlock}{count, plural, =0 {} one { and took it out of 1 item's requirements} other { and took it out of {count, number} items' requirements}}.
+commands.tradestation.spread.desc = Set the spread: buy price = base x (1 + spread); 0 = fully reversible trades
+commands.tradestation.spread.arg = Spread, a number >= 0 (e.g. 0 or 0.25)
+commands.tradestation.spread.bad = The spread must be a number of 0 or more.
+commands.tradestation.spread.done = Spread is now {spread}.
 commands.tradestation.noTarget = Look at a Trade Station (within {reach} blocks).
 commands.tradestation.sell.desc = Sell the item stack in your hand to the Trade Station you are looking at
 commands.tradestation.sell.selectHotbar = Select a hotbar slot to sell from.

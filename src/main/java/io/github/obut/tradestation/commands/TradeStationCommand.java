@@ -31,7 +31,10 @@ public class TradeStationCommand extends AbstractCommandCollection {
         addSubCommand(new UnlockCommand(true, configManager, viewers, logger));
         addSubCommand(new GeneratePrices(priceGeneration));
         addSubCommand(new CheckPrices(priceGeneration, configManager));
-        addSubCommand(new ItemCommand(configManager, priceGeneration, viewers));
+        ConfigEditor editor = new ConfigEditor(configManager, priceGeneration, viewers);
+        addSubCommand(new ItemCommand(editor));
+        addSubCommand(new UnlockDefCommand(editor));
+        addSubCommand(new Spread(editor));
     }
 
     /** {@code /tradestation reload}: re-reads tradeables.json; a broken file keeps the old config. */
@@ -112,6 +115,38 @@ public class TradeStationCommand extends AbstractCommandCollection {
             } catch (java.io.IOException e) {
                 context.sendMessage(Texts.of("commands.tradestation.generateprices.failed").param("error", String.valueOf(e.getMessage())));
             }
+        }
+    }
+
+    /** {@code /tradestation spread <value>}: buy price = ceil(base x (1 + spread)); 0 = fully reversible trades. */
+    static class Spread extends CommandBase {
+
+        private final ConfigEditor editor;
+        private final com.hypixel.hytale.server.core.command.system.arguments.system.RequiredArg<String> valueArg =
+                withRequiredArg("value", Texts.key("commands.tradestation.spread.arg"),
+                        com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes.STRING);
+
+        Spread(ConfigEditor editor) {
+            super("spread", Texts.key("commands.tradestation.spread.desc"));
+            this.editor = editor;
+        }
+
+        @Override
+        protected void executeSync(@Nonnull CommandContext context) {
+            java.math.BigDecimal value;
+            try {
+                // Read as text so 0.25 stays exactly 0.25 (no floating point).
+                value = new java.math.BigDecimal(valueArg.get(context).trim());
+            } catch (NumberFormatException e) {
+                value = null;
+            }
+            if (value == null || value.signum() < 0) {
+                context.sendMessage(Texts.of("commands.tradestation.spread.bad"));
+                return;
+            }
+            java.math.BigDecimal spread = value;
+            editor.apply(context, config -> config.withSpread(spread),
+                    now -> Texts.of("commands.tradestation.spread.done").param("spread", now.spread().toPlainString()), null);
         }
     }
 }
