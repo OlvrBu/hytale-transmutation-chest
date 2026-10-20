@@ -1,0 +1,65 @@
+{
+  "TranslationProperties": {
+    "Name": "tradestation.items.Trade_Station.name",
+    "Description": "tradestation.items.Trade_Station.description"
+  },
+  "MaxStack": 1,
+  "Icon": "Icons/ItemsGenerated/Bench_Architects.png",
+  "Categories": [
+    "Furniture.Benches"
+  ],
+  "BlockType": {
+    "Material": "Solid",
+    "DrawType": "Model",
+    "Opacity": "Transparent",
+    "CustomModel": "Blocks/Benches/Builder.blockymodel",
+    "CustomModelTexture": [
+      {
+        "Texture": "Blocks/Benches/Builder_Texture.png",
+        "Weight": 1
+      }
+    ],
+    "HitboxType": "Bench_Architect",
+    "VariantRotation": "NESW",
+    "Interactions": {
+      "Use": {
+        "Interactions": [
+          {
+            "Type": "TradeStation_Use"
+          }
+        ]
+      }
+    },
+    "Gathering": {
+      "Breaking": {
+        "GatherType": "Benches"
+      }
+    },
+    "BlockParticleSetId": "Stone",
+    "ParticleColor": "#5C583E",
+    "Support": {
+      "Down": [
+        {
+          "FaceType": "Full"
+        }
+      ]
+    },
+    "BlockSoundSetId": "Stone",
+    "PhysicalMaterialId": "Stone",
+    "TextureComputedColor": "#767267"
+  },
+  "PlayerAnimationsId": "Block",
+  "IconProperties": {
+    "Scale": 0.365,
+    "Translation": [
+      13.5,
+      -11.1
+    ],
+    "Rotation": [
+      22.5,
+      45,
+      22.5
+    ]
+  },
+  "ItemSoundSetId": "ISS_Blocks_Wood"
+}

@@ -2,10 +2,12 @@ package io.github.obut.tradestation;
 
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.event.events.BootEvent;
+import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import io.github.obut.tradestation.commands.SellCommand;
 import io.github.obut.tradestation.config.TradeConfigManager;
+import io.github.obut.tradestation.station.StationUseInteraction;
 
 import javax.annotation.Nonnull;
 import java.util.logging.Level;
@@ -16,10 +18,18 @@ import java.util.logging.Level;
  */
 public class TradeStationPlugin extends JavaPlugin {
 
+    private static TradeStationPlugin instance;
+
     private TradeConfigManager configManager;
 
     public TradeStationPlugin(@Nonnull JavaPluginInit init) {
         super(init);
+        instance = this;
+    }
+
+    /** For code the server instantiates itself (e.g. interactions built from JSON), which can't be handed the plugin. */
+    public static TradeStationPlugin get() {
+        return instance;
     }
 
     @Override
@@ -30,6 +40,11 @@ public class TradeStationPlugin extends JavaPlugin {
         configManager = new TradeConfigManager(getDataDirectory(), getLogger(),
                 itemId -> Item.getAssetMap().getAsset(itemId) != null);
         getCommandRegistry().registerCommand(new SellCommand(configManager, getLogger()));
+
+        // Make "Type": "TradeStation_Use" usable in asset JSON. Must happen in setup(), before
+        // the server loads the assets that refer to it (our Trade_Station block).
+        getCodecRegistry(Interaction.CODEC)
+                .register(StationUseInteraction.TYPE, StationUseInteraction.class, StationUseInteraction.CODEC);
 
         // Item assets aren't loaded yet during setup(), and validating item IDs needs them.
         // BootEvent fires once the server has fully started, before any player can join.
