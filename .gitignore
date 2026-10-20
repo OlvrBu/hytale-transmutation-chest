@@ -10,3 +10,6 @@ run/
 .project
 .settings/
 .vscode
+
+# Claude Code personal settings
+.claude/settings.local.json
