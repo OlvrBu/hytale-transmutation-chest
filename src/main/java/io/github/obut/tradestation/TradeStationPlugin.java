@@ -17,6 +17,7 @@ import io.github.obut.tradestation.station.TradeService;
 import io.github.obut.tradestation.ui.StationViewers;
 
 import javax.annotation.Nonnull;
+import java.nio.file.Files;
 import java.util.logging.Level;
 
 /**
@@ -30,6 +31,7 @@ public class TradeStationPlugin extends JavaPlugin {
     private TradeConfigManager configManager;
     private ComponentType<ChunkStore, StationComponent> stationComponentType;
     private TradeService tradeService;
+    private PriceGenerationService priceGeneration;
     private final StationViewers stationViewers = new StationViewers();
 
     public TradeStationPlugin(@Nonnull JavaPluginInit init) {
@@ -67,8 +69,9 @@ public class TradeStationPlugin extends JavaPlugin {
                 itemId -> Item.getAssetMap().getAsset(itemId) != null);
         tradeService = new TradeService(configManager, getLogger());
         // /tradestation reload | sell | buy | setbalance | generateprices | checkprices (operators only)
+        priceGeneration = new PriceGenerationService(getDataDirectory());
         getCommandRegistry().registerCommand(new TradeStationCommand(configManager, tradeService, stationViewers,
-                new PriceGenerationService(getDataDirectory()), getLogger()));
+                priceGeneration, getLogger()));
 
         // Block data: register our component under the name the block JSON and saved chunks use,
         // and the system that turns a destroyed station into an item carrying its balance.
@@ -83,7 +86,31 @@ public class TradeStationPlugin extends JavaPlugin {
 
         // Item assets aren't loaded yet during setup(), and validating item IDs needs them.
         // BootEvent fires once the server has fully started, before any player can join.
-        getEventRegistry().register(BootEvent.class, event -> configManager.reload());
+        getEventRegistry().register(BootEvent.class, event -> {
+            generateConfigIfMissing();
+            configManager.reload();
+        });
+    }
+
+    /**
+     * Fresh server: build tradeables.json from price_seeds.json and this server's recipes, so the
+     * list fits the game version and mods actually installed. An existing file is never touched;
+     * if generation fails, TradeConfigManager falls back to the default bundled in the jar.
+     */
+    private void generateConfigIfMissing() {
+        if (Files.exists(configManager.file())) {
+            return;
+        }
+        long start = System.nanoTime();
+        try {
+            PriceGenerationService.GenerateSummary summary = priceGeneration.generateInitialConfig(configManager.file());
+            getLogger().at(Level.INFO).log("First launch: generated %s with %d tradeable items in %d ms (report: %s)",
+                    configManager.file(), summary.tradeable(), (System.nanoTime() - start) / 1_000_000, summary.report());
+        } catch (Exception e) {
+            // Any failure here must not stop the server; the bundled default will be used instead.
+            getLogger().at(Level.WARNING).log("First launch: could not generate %s (%s); using the bundled default",
+                    configManager.file(), e);
+        }
     }
 
     @Override

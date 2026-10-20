@@ -46,6 +46,7 @@ The Hytale API is young, changes between Early Access updates, and is not well r
 - **No currency item.** The balance is a number stored on the station itself.
 - **Stations and balances are shared** by all players. No ownership.
 - **Breaking a station keeps its balance in the dropped item.** Placing that item restores the balance. A station item with no balance data places as a fresh station with balance 0.
+- **Unlocks (decided, milestone 6+):** items must be unlocked per station by donating base materials (default 500 per unlock). Unlocks are per station, permanent once complete (even if config amounts change later), pure investment (donated items consumed, no balance credit), and travel with the station item like the balance. Each price seed is its own unlock except configured groups (currently only "Clay": any of 17 clays). An item needs, for every seed its cheapest recipe chain starts from, that seed's unlock; where a recipe accepts several equally cheap materials ("any hardwood log") any one of their unlocks suffices ("any one of" requirements).
 
 ### Data model
 - Balance is a **`long`** (integer value units). No floating-point balances anywhere.
@@ -70,11 +71,11 @@ Single file serving as both whitelist and price list — an item is tradeable **
 - `items`: item ID → **base sell price** (positive integer). Item IDs must be real Hytale item IDs (verify against assets).
 - Selling 1 item adds `base` to the balance.
 - Buying 1 item costs `ceil(base * (1 + spread))`. Round **up** so the spread is never lost to rounding.
-- `spread` is configurable, must be ≥ 0.
+- `spread` is configurable, must be ≥ 0. **Default is 0** (decided): trades are fully reversible; the option stays.
 - Loop prevention (e.g. craft → sell → buy cycles) is handled by the owner tuning base prices manually; the plugin just needs to make prices easy to adjust. Optional nice-to-have later: a dev command that flags recipes where outputs sell for more than their inputs.
 - Validate on load: reject/warn on unknown item IDs, non-positive prices, negative spread, malformed JSON. A bad config must never crash the server; log clearly and fall back to an empty/previous config.
 - Ship a sensible default file; the server-side copy is the one admins edit.
-- **Price workflow (built in milestone 6):** prices are not hand-written. Hand-set raw-material prices + exclusions live in `price_seeds.json`; `/tradestation generateprices` derives every craftable block's price from the server's recipes, block-group swaps (Builder's Workbench cycles blocks 1:1 within a `BlockGroup`) and fixed block drops (price = cheapest way to make it, rounded down, so crafting never gains value), writing `generated/tradeables.generated.json` + a report. Review, copy over `tradeables.json`, `/tradestation reload`; `/tradestation checkprices` verifies no craft-and-sell loops. Scope (decided): placeable rock/soil/wood blocks and decoration made from them; no ingredients, weapons, plants, metal, cloth; nothing creative-only.
+- **Price workflow (built in milestone 6):** prices are not hand-written. Hand-set raw-material prices + exclusions live in `price_seeds.json`; `/tradestation generateprices` derives every craftable block's price from the server's recipes, block-group swaps (Builder's Workbench cycles blocks 1:1 within a `BlockGroup`) and fixed block drops (price = cheapest way to make it, rounded down, so crafting never gains value), writing `generated/tradeables.generated.json` + a report. Review, copy over `tradeables.json`, `/tradestation reload`; `/tradestation checkprices` verifies no craft-and-sell loops. Scope (decided): placeable rock/soil/wood blocks and decoration made from them; no ingredients, weapons, plants, metal, cloth; nothing creative-only. Only items craftable from other tradeable blocks alone are listed (decided: nothing needing sticks, fibre, ... — so grass/pathways are out), but prices are computed over all recipes so loops stay impossible. **First launch:** if `tradeables.json` doesn't exist, the plugin generates it from the server's own recipes (incl. other mods) on BootEvent; on failure it copies the bundled default; an existing file is never overwritten.
 
 ### Correctness rules
 - All buy/sell logic runs server-side. **Re-check balance and inventory at the moment of the transaction**, never trust what a UI last displayed.

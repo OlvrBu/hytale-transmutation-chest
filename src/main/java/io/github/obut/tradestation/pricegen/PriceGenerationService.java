@@ -174,6 +174,16 @@ public final class PriceGenerationService {
                 zeroPriced.size(), result.converged(), output, reportPath);
     }
 
+    /**
+     * First launch: generates the price list from this server's assets (including other mods'
+     * recipes) and installs it as {@code target}. Never overwrites an existing file.
+     */
+    public GenerateSummary generateInitialConfig(Path target) throws IOException, TradeConfigException {
+        GenerateSummary summary = generate();
+        Files.copy(summary.output(), target); // throws if target exists: never clobber an admin's file
+        return summary;
+    }
+
     public CheckSummary check(TradeConfig config) throws IOException {
         List<LoopChecker.Issue> issues = LoopChecker.check(config, AssetConversions.build().conversions());
         issues = issues.stream().sorted(Comparator.comparing(LoopChecker.Issue::isLoop).reversed()).toList();

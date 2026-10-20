@@ -12,14 +12,19 @@ specific building materials and on inventory juggling, without going full creati
 - **No currency.** Each station has its own **balance**. Selling to a station adds the items' value
   to its balance; buying from it pays from that balance.
 - **Shared by everyone.** Anyone can use any station; there's no ownership.
-- **The balance travels with the station.** Breaking a station drops it as an item that keeps its
-  balance; placing that item restores it.
-- **Building blocks only.** Placeable rock, soil and wood blocks plus decoration made from them
-  (941 items by default). No ingredients, tools, weapons, plants, metal, cloth, or creative-only
-  blocks.
-- **Buying costs more than selling earns.** Buying one item costs `ceil(base × (1 + spread))`, with
-  a default spread of 25 %. Prices are derived from the game's recipes so that buying ingredients,
-  crafting and selling the result can never make a profit (see [Prices](#prices)).
+- **Unlock what you trade.** A new station trades nothing. Players **donate** base materials to
+  unlock groups of items. Donating 500 stone cobble, for example, unlocks cobble, stone, stone bricks
+  and everything else made only from them. Unlocks are per station, permanent, and pure investment:
+  donated items are used up and add nothing to the balance.
+- **Everything travels with the station.** Breaking a station drops it as an item that keeps its
+  balance and unlocks; placing that item restores them.
+- **Building blocks only.** Placeable rock, soil and wood blocks, plus decoration made from them,
+  that can be crafted from other tradeable blocks alone. That's 919 items by default. No
+  ingredients, tools, weapons, plants, metal, cloth or creative-only blocks, and nothing that needs
+  sticks, fibre, fabric and the like.
+- **Fair prices.** By default, buying costs exactly what selling earns (spread 0), so trades are
+  fully reversible. A spread can be configured. Prices are derived from the game's recipes so that
+  buying ingredients, crafting and selling the result can never make a profit (see [Prices](#prices)).
 
 ### Getting a station
 
@@ -33,25 +38,35 @@ Craft it at a **Workbench upgraded to tier 2** (crafting category), 3 seconds:
 
 ### Using a station
 
-Use the station (interact key) to open its trading screen. Each row is one tradeable item:
+Use the station (interact key) to open it. The screen has three tabs:
 
-- **Sell 1 / Sell all** sell from anywhere in your inventory (hotbar, storage, backpack).
-- **Buy 1 / Buy *stack*** buy one item or a full stack.
-- **Search** narrows the list as you type. It matches item names and IDs, and every word must
-  match (e.g. `sand brick`).
-- **Only items I have** shows just what you can sell.
-- Results are shown 30 per page.
+- **Sell:** the unlocked items you have, with **Sell 1 / Sell all**. Items are taken from anywhere
+  in your inventory (hotbar, storage, backpack).
+- **Buy:** all unlocked items, with **Buy 1 / Buy *stack*** (one item or a full stack).
+- **Unlock:** one row per unlock, with its progress (e.g. 320 / 500), how many items it opens up,
+  and **Donate 1 / Donate all**. Two filters, both on by default:
+  - **Hide unlocked**
+  - **Only what I can donate**
 
-All open screens of a station update when anyone trades with it. Every trade is checked again on the
-server at the moment it happens, and it's all-or-nothing: if your inventory can't fit a purchase,
-nothing is bought and the balance isn't touched.
+  Donations stop at the required amount. A station with nothing unlocked opens on this tab.
+
+All tabs have a **search** box that matches item names and IDs; every word must match, e.g.
+`sand brick`. Results are shown 30 per page.
+
+All open screens of a station update when anyone trades or donates. Every action is checked again on
+the server at the moment it happens, and it's all-or-nothing: if your inventory can't fit a
+purchase, nothing is bought and the balance isn't touched.
 
 ## Installation
 
 1. Build the jar (see [Development](#development)) or take `tradestation-<version>.jar` from a release.
 2. Put it in the server's `mods/` folder (singleplayer: `UserData/Mods/`).
-3. Start the server. On first start the plugin creates its data folder
-   `mods/obut_tradestation/` with `tradeables.json` and `price_seeds.json`.
+3. Start the server. On first start the plugin creates its data folder `mods/obut_tradestation/`:
+   - `price_seeds.json`: the default raw-material prices and unlock settings.
+   - `tradeables.json`: **generated from this server's recipes**, including other installed mods.
+     If generation fails, the default list bundled in the jar is used instead.
+
+   Existing files are never overwritten. To regenerate later, see [Prices](#prices).
 
 ## Commands
 
@@ -67,29 +82,44 @@ permission node such as `obut.tradestation.command.tradestation.reload`. `reload
 | `/tradestation sell` | Sells the held item type (the held stack's amount) to the station you're looking at. |
 | `/tradestation buy <item> [--quantity=N]` | Buys from the station you're looking at. |
 | `/tradestation setbalance <amount>` | Sets the balance of the station you're looking at (for testing). |
+| `/tradestation unlock <id\|all>` | Completes an unlock at the station you're looking at, without donating (for testing). |
+| `/tradestation lock <id\|all>` | Undoes an unlock and its donations there (for testing). |
 
 ## Configuration
 
 ### `tradeables.json`: the active price list
 
-An item is tradeable **if and only if** it's listed. The value is its **base sell price** (a
-positive integer):
+An item is tradeable **if and only if** it's listed. Its value is either just its **base sell price**
+(a positive integer) or an object that also says which unlocks it needs:
 
 ```json
 {
-  "spread": 0.25,
+  "spread": 0,
+  "unlocks": {
+    "Rock_Stone_Cobble": { "amount": 500, "accepts": ["Rock_Stone_Cobble"] },
+    "Clay": { "amount": 500, "accepts": ["Soil_Clay_Red", "Soil_Clay_Blue", "..."] }
+  },
   "items": {
-    "Rock_Stone_Cobble": 10,
-    "Rock_Stone_Brick_Half": 5
+    "Rock_Stone_Brick": { "price": 10, "requires": ["Rock_Stone_Cobble"] },
+    "Wood_Hardwood_Planks": { "price": 20, "requires": [["Wood_Oak_Trunk", "Wood_Ash_Trunk", "..."]] },
+    "Some_Free_Item": 5
   }
 }
 ```
 
-- Selling one item adds `base` to the station's balance.
-- Buying one item costs `ceil(base × (1 + spread))`. `spread` must be ≥ 0.
-- Malformed JSON, a missing or negative spread, or a missing `items` object rejects the whole file.
-  Bad single entries (unknown item IDs, non-positive or non-integer prices, duplicates) are skipped
-  with a warning in the log. A bad file never crashes the server.
+- **Prices:** selling one item adds `base` to the station's balance. Buying one costs
+  `ceil(base × (1 + spread))`, where `spread` must be ≥ 0.
+- **Unlocks:** an unlock is complete once `amount` items from `accepts` have been donated. Each item
+  in `accepts` counts as 1, and any mix works.
+- **Requirements:** each entry in `requires` is one requirement. A plain string means that unlock is
+  needed; a list means **any one of** those unlocks. An item is tradeable at a station once all of
+  its requirements are met there. Items without `requires` need no unlock.
+- **Validation:**
+  - Malformed JSON, a missing or negative spread, or a missing `items` object rejects the whole file.
+  - Bad single entries are skipped with a warning in the log: unknown item IDs, invalid prices,
+    duplicates, undefined unlocks, invalid unlock definitions.
+  - A bad file never crashes the server.
+- **Unlocks are permanent:** completed unlocks stay unlocked even if amounts change later.
 - Apply edits with `/tradestation reload`.
 
 ### Prices
@@ -97,21 +127,29 @@ positive integer):
 You normally don't write `tradeables.json` by hand: it's generated.
 
 **`price_seeds.json`** holds hand-set prices for raw materials only (rock cobble, logs, natural
-soils), plus what to leave out:
+soils), plus what to leave out and how unlocks work:
 
 ```json
 {
-  "spread": 0.25,
+  "spread": 0,
   "excludeCategories": ["Furniture.Benches", "Blocks.Plants", "Items", "Tool."],
   "excludeItems": ["Trade_Station", "Bench_*"],
   "seeds": {
     "Rock_Stone_Cobble": 10,
     "Wood_Oak_Trunk": 20
+  },
+  "unlocks": {
+    "defaultAmount": 500,
+    "amounts": { "Wood_Oak_Trunk": 200 },
+    "groups": { "Clay": ["Soil_Clay_Red", "Soil_Clay_Blue"] }
   }
 }
 ```
 
-`excludeCategories` match by prefix. `excludeItems` are exact IDs, or prefixes when they end in `*`.
+- `excludeCategories` match by prefix. `excludeItems` are exact IDs, or prefixes when they end in `*`.
+- **Unlocks:** each seed is its own unlock, unless it's listed in a group: all seeds of a group
+  share one unlock, and donations of any member count. `amounts` overrides `defaultAmount` per
+  unlock. Without an `unlocks` section, nothing needs unlocking.
 
 **`/tradestation generateprices`** works out the price of every block that can be made from seeded
 materials. It follows every way the game can turn items into other items:
@@ -120,19 +158,28 @@ materials. It follows every way the game can turn items into other items:
 - swapping a block within its block group at the Builder's Workbench, which is free and 1:1;
 - placing a block and breaking it, if it drops something else.
 
-An item's price is the **cheapest way to make it, rounded down**. Crafting therefore never increases
-value, and craft-and-sell loops are impossible by construction. Blocks that need an unpriced input
-(fabric, metal, plants, …) stay out of the list.
+The rules:
+
+- **Prices:** an item's price is the **cheapest way to make it, rounded down**. Crafting therefore
+  never increases value, and craft-and-sell loops are impossible by construction.
+- **What gets listed:** only blocks that can be made **from other tradeable blocks alone**. Prices
+  still consider all recipes, including routes via sticks or fibre, so loops stay impossible.
+- **Required unlocks:** an item needs the unlocks of the seeds its cheapest recipe chain starts
+  from. Where a recipe accepts several equally cheap materials (e.g. "any hardwood log"), any one
+  of their unlocks is enough.
 
 It writes two files to `mods/obut_tradestation/generated/`:
 
 - `tradeables.generated.json` is the proposed price list.
-- `tradeables.generated.report.txt` gives every price with what determined it, seeds that were
-  lowered, and the blocks that couldn't be priced and why.
+- `tradeables.generated.report.txt` contains:
+  - every price, with what determined it;
+  - every unlock and its items;
+  - items whose requirements offer alternatives;
+  - what was left out, and why.
 
 Typical workflow:
 
-1. Adjust seeds or exclusions in `price_seeds.json`.
+1. Adjust seeds, exclusions or unlock settings in `price_seeds.json`.
 2. Run `/tradestation generateprices` and read the report.
 3. Copy `generated/tradeables.generated.json` over `tradeables.json`.
 4. Run `/tradestation reload`, then optionally `/tradestation checkprices`.
@@ -172,19 +219,21 @@ src/main/java/io/github/obut/tradestation/
   config/                     tradeables.json: parsing, validation, loading/reloading
   pricing/                    price and balance math (plain Java)
   pricegen/                   price generator and loop checker (plain Java) + server asset adapter
+  unlock/                     per-station unlock progress rules (plain Java)
   station/                    block component, break/place handling, trading logic
-  ui/                         trading screen, open-viewer tracking, search/paging helpers
+  ui/                         trading screen (Sell/Buy/Unlock tabs), open-viewer tracking, search/paging
   commands/                   /tradestation and its subcommands
   text/                       translation helpers
 src/main/resources/
   Server/Item/Items/Trade_Station.json      the block/item (model, recipe, interaction)
   Server/Languages/en-US/tradestation.lang  all player-facing text
-  Common/UI/Custom/Pages/TradeStation/      trading screen layout
+  Common/UI/Custom/Pages/TradeStation/      trading screen layout and tab icons
   tradeables.json, price_seeds.json         default configuration
 ```
 
-Everything that doesn't need a running server (price math, config parsing, the price generator, loop
-checking, search, paging, translation keys) is unit-tested; run `./gradlew test`.
+Everything that doesn't need a running server is unit-tested: price math, config parsing, the price
+generator, unlock requirements, loop checking, unlock rules, search, paging and translation keys.
+Run `./gradlew test`.
 
 ### Translations
 
@@ -196,7 +245,7 @@ test makes sure every key the code and UI use exists in the English file.
 
 - The station reuses the Builder's Workbench model; it has no model of its own yet.
 - **Creative mode:** placing a block doesn't use up the item there, so a station item carrying a
-  balance can be placed repeatedly. Breaking a station in creative mode drops its item, so a balance
+  balance and unlocks can be placed repeatedly. Breaking a station in creative mode drops its item, so a balance
   is never silently lost.
 - Not yet tested in-game:
   - two players viewing the same station at once;
@@ -204,6 +253,8 @@ test makes sure every key the code and UI use exists in the English file.
 
   Both should work: removal is handled generically for any cause.
 - The price generator ignores random drop lists.
+- Grass, leaf and needle soil, and pathways aren't tradeable: their recipes need plant fibre, which
+  isn't a block.
 
 ## Credits
 

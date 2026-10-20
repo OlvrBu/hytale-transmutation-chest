@@ -11,8 +11,9 @@ import java.util.function.Predicate;
 import java.util.logging.Level;
 
 /**
- * Owns the active {@link TradeConfig}: loads tradeables.json from the plugin's data directory,
- * copying the bundled default there first if the file doesn't exist yet.
+ * Owns the active {@link TradeConfig}: loads tradeables.json from the plugin's data directory.
+ * On a fresh server the plugin generates that file first (see TradeStationPlugin); if it still
+ * doesn't exist here, the default bundled in the jar is copied as a fallback.
  * <p>
  * A failed load never throws and never replaces a working config: it logs the problem and keeps
  * the previous config (initially {@link TradeConfig#EMPTY}, i.e. nothing is tradeable).
@@ -36,6 +37,11 @@ public final class TradeConfigManager {
 
     public TradeConfig current() {
         return current;
+    }
+
+    /** The active tradeables.json in the plugin data directory. */
+    public Path file() {
+        return file;
     }
 
     /**
