@@ -44,6 +44,20 @@ public final class Pricing {
         return Math.multiplyExact(buyPrice(basePrice, spread), quantity);
     }
 
+    /** New balance after adding {@code amount}. Throws instead of overflowing. */
+    public static long credit(long balance, long amount) {
+        requireNonNegative(balance, "balance");
+        requireNonNegative(amount, "amount");
+        return Math.addExact(balance, amount);
+    }
+
+    /** New balance after paying {@code amount}, or -1 if the balance doesn't cover it. */
+    public static long debit(long balance, long amount) {
+        requireNonNegative(balance, "balance");
+        requireNonNegative(amount, "amount");
+        return amount > balance ? -1 : balance - amount;
+    }
+
     private static void requirePositive(long value, String name) {
         if (value <= 0) {
             throw new IllegalArgumentException(name + " must be > 0, got " + value);

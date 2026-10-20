@@ -1,0 +1,96 @@
+$C = "../../Common.ui";
+
+// Trade Station page. The server fills #Balance, #Status and appends one StationRow.ui per item into #Rows.
+
+$C.@PageOverlay {}
+
+$C.@DecoratedContainer {
+  Anchor: (Width: 920, Height: 580);
+
+  #Title {
+    Label #StationTitle {
+      Style: (
+        ...$C.@TitleStyle,
+        HorizontalAlignment: Center,
+      );
+      Padding: (Horizontal: 19);
+      Text: "Trade Station";
+    }
+  }
+
+  #Content {
+    LayoutMode: Top;
+    Padding: (Horizontal: 10);
+
+    Group #Header {
+      Anchor: (Height: 44);
+      LayoutMode: Left;
+      Padding: (Horizontal: 8);
+
+      Label #Balance {
+        FlexWeight: 1;
+        Style: (
+          FontSize: 20,
+          TextColor: #E8A93B,
+          RenderBold: true,
+          VerticalAlignment: Center,
+        );
+        Text: "";
+      }
+
+      Label #Status {
+        FlexWeight: 2;
+        Style: (
+          FontSize: 14,
+          TextColor: #96a9be,
+          HorizontalAlignment: End,
+          VerticalAlignment: Center,
+        );
+        Text: "";
+      }
+    }
+
+    // Filter bar: search text + "only items I have". The server hides rows that don't match.
+    Group #Filters {
+      Anchor: (Height: 44, Bottom: 6);
+      LayoutMode: Left;
+      Padding: (Horizontal: 8);
+
+      $C.@TextField #SearchInput {
+        @Anchor = (Width: 320);
+        PlaceholderText: "Search items...";
+      }
+
+      Group {
+        Anchor: (Width: 24);
+      }
+
+      $C.@CheckBoxWithLabel #OwnedOnly {
+        @Text = "Only items I have";
+        Anchor: (Width: 260);
+      }
+    }
+
+    $C.@ContentSeparator {}
+
+    Label #NoMatches {
+      Anchor: (Height: 40);
+      Style: (FontSize: 15, TextColor: #878e9c, HorizontalAlignment: Center, VerticalAlignment: Center);
+      Text: "No items match your filter.";
+      Visible: false;
+    }
+
+    Group #RowsContainer {
+      FlexWeight: 1;
+      LayoutMode: TopScrolling;
+      ScrollbarStyle: $C.@DefaultScrollbarStyle;
+      Padding: (Top: 8, Right: 8);
+
+      Group #Rows {
+        LayoutMode: Top;
+      }
+    }
+  }
+}
+
+$C.@BackButton {}

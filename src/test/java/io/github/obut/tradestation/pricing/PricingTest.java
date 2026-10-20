@@ -62,4 +62,21 @@ class PricingTest {
         assertEquals(6, Pricing.buyCost(1, new BigDecimal("0.25"), 3));
         assertThrows(ArithmeticException.class, () -> Pricing.buyCost(Long.MAX_VALUE / 2, BigDecimal.ZERO, 3));
     }
+
+    @Test
+    void creditAddsAndRejectsOverflow() {
+        assertEquals(15, Pricing.credit(10, 5));
+        assertEquals(Long.MAX_VALUE, Pricing.credit(Long.MAX_VALUE - 1, 1));
+        assertThrows(ArithmeticException.class, () -> Pricing.credit(Long.MAX_VALUE, 1));
+        assertThrows(IllegalArgumentException.class, () -> Pricing.credit(-1, 1));
+        assertThrows(IllegalArgumentException.class, () -> Pricing.credit(1, -1));
+    }
+
+    @Test
+    void debitSubtractsOnlyWhenCovered() {
+        assertEquals(5, Pricing.debit(10, 5));
+        assertEquals(0, Pricing.debit(10, 10));
+        assertEquals(-1, Pricing.debit(10, 11));
+        assertThrows(IllegalArgumentException.class, () -> Pricing.debit(10, -1));
+    }
 }

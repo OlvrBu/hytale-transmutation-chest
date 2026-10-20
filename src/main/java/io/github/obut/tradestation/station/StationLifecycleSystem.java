@@ -15,6 +15,7 @@ import com.hypixel.hytale.server.core.modules.entity.item.ItemComponent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import io.github.obut.tradestation.ui.StationViewers;
 import org.joml.Vector3d;
 import org.joml.Vector3i;
 
@@ -35,10 +36,12 @@ import java.util.logging.Level;
 public class StationLifecycleSystem extends RefSystem<ChunkStore> {
 
     private final HytaleLogger logger;
+    private final StationViewers viewers;
     private final Query<ChunkStore> query;
 
-    public StationLifecycleSystem(HytaleLogger logger) {
+    public StationLifecycleSystem(HytaleLogger logger, StationViewers viewers) {
         this.logger = logger;
+        this.viewers = viewers;
         // Station blocks always have BlockStateInfo too (it records where the block is).
         this.query = Query.and(StationComponent.getComponentType(), BlockModule.BlockStateInfo.getComponentType());
     }
@@ -94,6 +97,7 @@ public class StationLifecycleSystem extends RefSystem<ChunkStore> {
             }
             return;
         }
+        viewers.closeAll(world, pos); // nobody can keep trading with a station that's gone
         String nowThere = StationAccess.blockTypeId(world, pos.x, pos.y, pos.z);
         Store<EntityStore> entities = world.getEntityStore().getStore();
         Holder<EntityStore>[] drops = ItemComponent.generateItemDrops(entities, List.of(StationItem.create(balance)),

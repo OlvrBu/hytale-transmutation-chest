@@ -13,6 +13,8 @@ import io.github.obut.tradestation.config.TradeConfigManager;
 import io.github.obut.tradestation.station.StationComponent;
 import io.github.obut.tradestation.station.StationLifecycleSystem;
 import io.github.obut.tradestation.station.StationUseInteraction;
+import io.github.obut.tradestation.station.TradeService;
+import io.github.obut.tradestation.ui.StationViewers;
 
 import javax.annotation.Nonnull;
 import java.util.logging.Level;
@@ -27,6 +29,8 @@ public class TradeStationPlugin extends JavaPlugin {
 
     private TradeConfigManager configManager;
     private ComponentType<ChunkStore, StationComponent> stationComponentType;
+    private TradeService tradeService;
+    private final StationViewers stationViewers = new StationViewers();
 
     public TradeStationPlugin(@Nonnull JavaPluginInit init) {
         super(init);
@@ -42,6 +46,18 @@ public class TradeStationPlugin extends JavaPlugin {
         return stationComponentType;
     }
 
+    public TradeConfigManager getConfigManager() {
+        return configManager;
+    }
+
+    public TradeService getTradeService() {
+        return tradeService;
+    }
+
+    public StationViewers getStationViewers() {
+        return stationViewers;
+    }
+
     @Override
     protected void setup() {
         // getLogger() is already named after the plugin ("tradestation|P"), so log lines are prefixed.
@@ -49,6 +65,7 @@ public class TradeStationPlugin extends JavaPlugin {
 
         configManager = new TradeConfigManager(getDataDirectory(), getLogger(),
                 itemId -> Item.getAssetMap().getAsset(itemId) != null);
+        tradeService = new TradeService(configManager, getLogger());
         getCommandRegistry().registerCommand(new SellCommand(configManager, getLogger()));
         getCommandRegistry().registerCommand(new StationBalanceCommand(getLogger()));
 
@@ -56,7 +73,7 @@ public class TradeStationPlugin extends JavaPlugin {
         // and the system that turns a destroyed station into an item carrying its balance.
         stationComponentType = getChunkStoreRegistry()
                 .registerComponent(StationComponent.class, StationComponent.ID, StationComponent.CODEC);
-        getChunkStoreRegistry().registerSystem(new StationLifecycleSystem(getLogger()));
+        getChunkStoreRegistry().registerSystem(new StationLifecycleSystem(getLogger(), stationViewers));
 
         // Make "Type": "TradeStation_Use" usable in asset JSON. Must happen in setup(), before
         // the server loads the assets that refer to it (our Trade_Station block).

@@ -1,6 +1,8 @@
 package io.github.obut.tradestation.config;
 
 import java.math.BigDecimal;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.OptionalLong;
 
@@ -15,8 +17,9 @@ public record TradeConfig(BigDecimal spread, Map<String, Long> basePrices) {
     public static final TradeConfig EMPTY = new TradeConfig(BigDecimal.ZERO, Map.of());
 
     public TradeConfig {
-        // Compact constructor: runs before the fields are assigned. Map.copyOf makes an immutable copy.
-        basePrices = Map.copyOf(basePrices);
+        // Compact constructor: runs before the fields are assigned. Read-only copy that keeps the
+        // file's item order (Map.copyOf would lose it), so the UI lists items as the admin wrote them.
+        basePrices = Collections.unmodifiableMap(new LinkedHashMap<>(basePrices));
     }
 
     public boolean isTradeable(String itemId) {

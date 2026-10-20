@@ -1,0 +1,67 @@
+$C = "../../Common.ui";
+
+// One tradeable item: icon, name, how many you have, sell price + buttons, buy price + buttons.
+
+Group {
+  Anchor: (Height: 56, Bottom: 4);
+  LayoutMode: Left;
+  Background: #1c2835;
+  Padding: (Horizontal: 6, Vertical: 4);
+
+  Group #IconBox {
+    Anchor: (Width: 48, Height: 48);
+    Background: #1a2530;
+    Padding: 2;
+
+    ItemSlot #Icon {
+      Anchor: (Full: 0);
+      ShowQualityBackground: true;
+    }
+  }
+
+  Group #Info {
+    FlexWeight: 1;
+    LayoutMode: Top;
+    Padding: (Left: 10);
+
+    Label #Name {
+      Anchor: (Height: 26);
+      Style: (FontSize: 16, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
+    }
+
+    Label #Have {
+      Anchor: (Height: 20);
+      Style: (FontSize: 13, TextColor: #96a9be, VerticalAlignment: Center);
+    }
+  }
+
+  Label #SellPrice {
+    Anchor: (Width: 90);
+    Style: (FontSize: 14, TextColor: #3d913f, HorizontalAlignment: End, VerticalAlignment: Center);
+  }
+
+  $C.@SmallSecondaryTextButton #Sell1 {
+    Anchor: (Left: 8, Width: 72, Height: $C.@SmallButtonHeight);
+    Text: "Sell 1";
+  }
+
+  $C.@SmallSecondaryTextButton #SellAll {
+    Anchor: (Left: 4, Width: 108, Height: $C.@SmallButtonHeight);
+    Text: "Sell all";
+  }
+
+  Label #BuyPrice {
+    Anchor: (Width: 90);
+    Style: (FontSize: 14, TextColor: #c9a050, HorizontalAlignment: End, VerticalAlignment: Center);
+  }
+
+  $C.@SmallSecondaryTextButton #Buy1 {
+    Anchor: (Left: 8, Width: 72, Height: $C.@SmallButtonHeight);
+    Text: "Buy 1";
+  }
+
+  $C.@SmallSecondaryTextButton #BuyStack {
+    Anchor: (Left: 4, Width: 108, Height: $C.@SmallButtonHeight);
+    Text: "Buy";
+  }
+}

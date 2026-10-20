@@ -41,6 +41,14 @@ class TradeConfigParserTest {
     }
 
     @Test
+    void keepsItemOrderFromFile() throws TradeConfigException {
+        var result = TradeConfigParser.parse("""
+                { "spread": 0, "items": { "C": 1, "A": 1, "B": 1, "E": 1, "D": 1 } }
+                """, ALL_KNOWN);
+        assertEquals(List.of("C", "A", "B", "E", "D"), List.copyOf(result.config().basePrices().keySet()));
+    }
+
+    @Test
     void acceptsZeroSpreadAndEmptyItems() throws TradeConfigException {
         var result = parse("""
                 { "spread": 0, "items": {} }
