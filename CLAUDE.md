@@ -52,6 +52,7 @@ The Hytale API is young, changes between Early Access updates, and is not well r
 - Placed block: a custom block component (`StationComponent`, `Component<ChunkStore>`, registered as `TradeStation_Station`) holding the balance, persisted with the chunk.
 - Station item: balance stored in Hytale's built-in `BlockHolder` item metadata (a serialized holder containing just our `StationComponent`). Decided in milestone 4 instead of a plugin-owned key: the server restores `BlockHolder` onto the block when the item is placed, so no custom place handler is needed. A station with balance 0 drops a plain item without metadata.
 - Break handler: a `RefSystem` on block-entity removal (any cause: player break, commands, explosions, builder tools) drops the station item with the balance; the block's own drop is disabled (`Gathering.Breaking.Quantity: 0`). Removal where a station remains at the position (data replaced) does not drop. Creative-mode breaking also drops the item (accepted: a balance must never be silently lost).
+- Obtaining: crafted at the Workbench, tier 2 (`Workbench_Crafting`, 3 s) from 6 iron bars, 5 logs (any `Wood_Trunk`), 5 rock (any `Rock`) — same tier/cost as the Salvage bench (decided as "late-game").
 - Known: in creative mode, placing doesn't consume the item, so a balance-carrying item can be placed repeatedly (accepted; creative can create anything).
 
 ### Config: `tradeables.json`

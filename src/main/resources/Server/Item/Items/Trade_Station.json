@@ -3,11 +3,39 @@
     "Name": "tradestation.items.Trade_Station.name",
     "Description": "tradestation.items.Trade_Station.description"
   },
+  "ItemLevel": 8,
   "MaxStack": 1,
   "Icon": "Icons/ItemsGenerated/Bench_Architects.png",
   "Categories": [
     "Furniture.Benches"
   ],
+  "Recipe": {
+    "Input": [
+      {
+        "ItemId": "Ingredient_Bar_Iron",
+        "Quantity": 6
+      },
+      {
+        "ResourceTypeId": "Wood_Trunk",
+        "Quantity": 5
+      },
+      {
+        "ResourceTypeId": "Rock",
+        "Quantity": 5
+      }
+    ],
+    "BenchRequirement": [
+      {
+        "Type": "Crafting",
+        "Categories": [
+          "Workbench_Crafting"
+        ],
+        "Id": "Workbench",
+        "RequiredTierLevel": 2
+      }
+    ],
+    "TimeSeconds": 3
+  },
   "BlockType": {
     "Material": "Solid",
     "DrawType": "Model",
