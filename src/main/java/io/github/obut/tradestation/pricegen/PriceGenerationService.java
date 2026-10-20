@@ -1,0 +1,170 @@
+package io.github.obut.tradestation.pricegen;
+
+import com.google.gson.stream.JsonWriter;
+import io.github.obut.tradestation.config.TradeConfig;
+import io.github.obut.tradestation.config.TradeConfigException;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+
+/**
+ * File handling around {@link PriceGenerator} and {@link LoopChecker}: reads price_seeds.json from the
+ * plugin data directory and writes results into its "generated" subfolder for the admin to review.
+ * The generated list is never activated automatically.
+ */
+public final class PriceGenerationService {
+
+    public static final String SEEDS_FILE = "price_seeds.json";
+    public static final String OUTPUT_DIR = "generated";
+    public static final String GENERATED_FILE = "tradeables.generated.json";
+    public static final String GENERATED_REPORT = "tradeables.generated.report.txt";
+    public static final String CHECK_REPORT = "tradeables.check.txt";
+
+    public record GenerateSummary(int tradeable, int loweredSeeds, int unpricedRaw, int unpricedOther,
+                                  int zeroPriced, boolean converged, Path output, Path report) {
+    }
+
+    public record CheckSummary(int loops, int spreadOnly, Path report) {
+    }
+
+    private final Path dataDirectory;
+
+    public PriceGenerationService(Path dataDirectory) {
+        this.dataDirectory = dataDirectory;
+    }
+
+    public GenerateSummary generate() throws IOException, TradeConfigException {
+        PriceSeeds seeds = PriceSeeds.parse(readSeeds());
+        AssetConversions.Graph graph = AssetConversions.build();
+        PriceGenerator.Result result = PriceGenerator.generate(seeds.seeds(), graph.conversions());
+
+        // Group tradeable items by first category for a readable file.
+        Comparator<AssetConversions.ItemInfo> order = Comparator
+                .comparing((AssetConversions.ItemInfo i) -> i.categories().isEmpty() ? "~" : i.categories().get(0))
+                .thenComparing(AssetConversions.ItemInfo::id);
+        List<AssetConversions.ItemInfo> tradeable = new ArrayList<>();
+        List<AssetConversions.ItemInfo> zeroPriced = new ArrayList<>();
+        for (AssetConversions.ItemInfo item : graph.items().values()) {
+            PriceGenerator.Price price = result.prices().get(item.id());
+            if (price == null || !seeds.includes(item)) {
+                continue;
+            }
+            (price.value() > 0 ? tradeable : zeroPriced).add(item);
+        }
+        tradeable.sort(order);
+
+        // Blocks we'd include but couldn't price: either nothing produces them (raw or creative-only:
+        // add a seed if players can gather them), or their inputs are unpriced.
+        Set<String> produced = new HashSet<>();
+        graph.conversions().forEach(c -> produced.addAll(c.outputs().keySet()));
+        Map<String, List<String>> unpricedRaw = new TreeMap<>();
+        Map<String, List<String>> unpricedOther = new TreeMap<>();
+        for (AssetConversions.ItemInfo item : graph.items().values()) {
+            if (result.prices().containsKey(item.id()) || !seeds.includes(item)) {
+                continue;
+            }
+            String category = item.categories().isEmpty() ? "(no category)" : item.categories().get(0);
+            (produced.contains(item.id()) ? unpricedOther : unpricedRaw)
+                    .computeIfAbsent(category, k -> new ArrayList<>()).add(item.id());
+        }
+
+        Path dir = Files.createDirectories(dataDirectory.resolve(OUTPUT_DIR));
+        Path output = dir.resolve(GENERATED_FILE);
+        Files.writeString(output, toJson(seeds, tradeable, result), StandardCharsets.UTF_8);
+
+        StringBuilder report = new StringBuilder();
+        report.append("Generated ").append(tradeable.size()).append(" tradeable items from ")
+                .append(seeds.seeds().size()).append(" seeds.\n");
+        if (!result.converged()) {
+            report.append("WARNING: price calculation did not converge; results may be incomplete.\n");
+        }
+        section(report, "Seeds lowered because a cheaper way to make the item exists", result.loweredSeeds());
+        List<String> lines = new ArrayList<>();
+        for (AssetConversions.ItemInfo item : tradeable) {
+            PriceGenerator.Price p = result.prices().get(item.id());
+            lines.add(String.format("%-48s %8d  <- %s", item.id(), p.value(), p.reason()));
+        }
+        section(report, "Tradeable items (price <- what set it)", lines);
+        section(report, "Priced at 0 (obtainable for free, left out)", zeroPriced.stream().map(AssetConversions.ItemInfo::id).toList());
+        report.append("\n== Unpriced blocks that nothing produces: raw materials (add a seed if players can gather them) or creative-only\n");
+        unpricedRaw.forEach((cat, ids) -> report.append("  [").append(cat).append("] ").append(String.join(" ", ids)).append('\n'));
+        report.append("\n== Unpriced blocks whose recipes need unpriced inputs (e.g. fabric, metal, plants)\n");
+        unpricedOther.forEach((cat, ids) -> report.append("  [").append(cat).append("] ").append(String.join(" ", ids)).append('\n'));
+        Path reportPath = dir.resolve(GENERATED_REPORT);
+        Files.writeString(reportPath, report, StandardCharsets.UTF_8);
+
+        return new GenerateSummary(tradeable.size(), result.loweredSeeds().size(),
+                unpricedRaw.values().stream().mapToInt(List::size).sum(),
+                unpricedOther.values().stream().mapToInt(List::size).sum(),
+                zeroPriced.size(), result.converged(), output, reportPath);
+    }
+
+    public CheckSummary check(TradeConfig config) throws IOException {
+        List<LoopChecker.Issue> issues = LoopChecker.check(config, AssetConversions.build().conversions());
+        issues = issues.stream().sorted(Comparator.comparing(LoopChecker.Issue::isLoop).reversed()).toList();
+        StringBuilder report = new StringBuilder();
+        int loops = 0;
+        for (LoopChecker.Issue issue : issues) {
+            loops += issue.isLoop() ? 1 : 0;
+            report.append(issue.isLoop() ? "LOOP        " : "SPREAD ONLY ")
+                    .append(issue.conversion().source()).append(": sells for ").append(issue.revenue())
+                    .append(", inputs cost ").append(issue.buyCost().stripTrailingZeros().toPlainString())
+                    .append(" to buy (").append(issue.baseCost().stripTrailingZeros().toPlainString())
+                    .append(" at base price); outputs ").append(issue.conversion().outputs()).append('\n');
+        }
+        if (issues.isEmpty()) {
+            report.append("No craft-and-sell loops found.\n");
+        }
+        Path dir = Files.createDirectories(dataDirectory.resolve(OUTPUT_DIR));
+        Path reportPath = dir.resolve(CHECK_REPORT);
+        Files.writeString(reportPath, report, StandardCharsets.UTF_8);
+        return new CheckSummary(loops, issues.size() - loops, reportPath);
+    }
+
+    private String readSeeds() throws IOException {
+        Path file = dataDirectory.resolve(SEEDS_FILE);
+        if (!Files.exists(file)) {
+            try (InputStream in = PriceGenerationService.class.getResourceAsStream("/" + SEEDS_FILE)) {
+                if (in == null) {
+                    throw new IOException("Bundled default " + SEEDS_FILE + " is missing from the plugin jar");
+                }
+                Files.createDirectories(dataDirectory);
+                Files.copy(in, file);
+            }
+        }
+        return Files.readString(file, StandardCharsets.UTF_8);
+    }
+
+    private static String toJson(PriceSeeds seeds, List<AssetConversions.ItemInfo> items, PriceGenerator.Result result)
+            throws IOException {
+        StringWriter out = new StringWriter();
+        try (JsonWriter json = new JsonWriter(out)) {
+            json.setIndent("  ");
+            json.beginObject();
+            json.name("spread").jsonValue(seeds.spread().toPlainString());
+            json.name("items").beginObject();
+            for (AssetConversions.ItemInfo item : items) {
+                json.name(item.id()).value(result.prices().get(item.id()).value());
+            }
+            json.endObject();
+            json.endObject();
+        }
+        return out + "\n";
+    }
+
+    private static void section(StringBuilder report, String title, List<String> lines) {
+        report.append("\n== ").append(title).append(" (").append(lines.size()).append(")\n");
+        lines.forEach(line -> report.append("  ").append(line).append('\n'));
+    }
+}

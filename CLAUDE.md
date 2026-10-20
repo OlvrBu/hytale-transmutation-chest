@@ -74,6 +74,7 @@ Single file serving as both whitelist and price list — an item is tradeable **
 - Loop prevention (e.g. craft → sell → buy cycles) is handled by the owner tuning base prices manually; the plugin just needs to make prices easy to adjust. Optional nice-to-have later: a dev command that flags recipes where outputs sell for more than their inputs.
 - Validate on load: reject/warn on unknown item IDs, non-positive prices, negative spread, malformed JSON. A bad config must never crash the server; log clearly and fall back to an empty/previous config.
 - Ship a sensible default file; the server-side copy is the one admins edit.
+- **Price workflow (built in milestone 6):** prices are not hand-written. Hand-set raw-material prices + exclusions live in `price_seeds.json`; `/tradestation generateprices` derives every craftable block's price from the server's recipes, block-group swaps (Builder's Workbench cycles blocks 1:1 within a `BlockGroup`) and fixed block drops (price = cheapest way to make it, rounded down, so crafting never gains value), writing `generated/tradeables.generated.json` + a report. Review, copy over `tradeables.json`, `/tradestation reload`; `/tradestation checkprices` verifies no craft-and-sell loops. Scope (decided): placeable rock/soil/wood blocks and decoration made from them; no ingredients, weapons, plants, metal, cloth; nothing creative-only.
 
 ### Correctness rules
 - All buy/sell logic runs server-side. **Re-check balance and inventory at the moment of the transaction**, never trust what a UI last displayed.

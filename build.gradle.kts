@@ -61,6 +61,11 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+// The dev server's plugin data dir is src/main/resources; keep price-generator output out of the jar.
+tasks.processResources {
+    exclude("generated/**")
+}
+
 tasks.test {
     useJUnitPlatform()
 }

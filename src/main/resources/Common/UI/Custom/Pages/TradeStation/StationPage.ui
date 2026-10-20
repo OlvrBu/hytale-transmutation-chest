@@ -90,6 +90,29 @@ $C.@DecoratedContainer {
         LayoutMode: Top;
       }
     }
+
+    // Pager: the server sends one page of rows at a time.
+    Group #Pager {
+      Anchor: (Height: 44, Top: 6);
+      LayoutMode: Left;
+      Padding: (Horizontal: 8);
+
+      $C.@SmallSecondaryTextButton #PrevPage {
+        Anchor: (Width: 130, Height: $C.@SmallButtonHeight);
+        Text: %tradestation.ui.prevPage;
+      }
+
+      Label #PageLabel {
+        FlexWeight: 1;
+        Style: (FontSize: 14, TextColor: #96a9be, HorizontalAlignment: Center, VerticalAlignment: Center);
+        Text: "";
+      }
+
+      $C.@SmallSecondaryTextButton #NextPage {
+        Anchor: (Width: 130, Height: $C.@SmallButtonHeight);
+        Text: %tradestation.ui.nextPage;
+      }
+    }
   }
 }
 

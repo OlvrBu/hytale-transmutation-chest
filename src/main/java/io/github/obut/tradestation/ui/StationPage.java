@@ -73,11 +73,14 @@ public class StationPage extends InteractiveCustomUIPage<StationPage.Event> {
     private final TradeService tradeService;
     private final StationViewers viewers;
 
-    /** Item IDs in the order their rows were built; a config reload that changes them forces a rebuild. */
-    private List<String> shownItems = List.of();
-    /** Translated display names, parallel to shownItems, for searching. */
+    /** Rows per page: the client freezes noticeably when sent hundreds of rows at once. */
+    static final int PAGE_SIZE = 30;
+
+    /** All tradeable item IDs (config order) and their translated names, for filtering. */
+    private List<String> allItems = List.of();
     private List<String> displayNames = List.of();
     private ItemFilter filter = ItemFilter.NONE;
+    private int page = 0;
     /** Result of this player's last trade; null until they trade. */
     private Message status;
 
@@ -103,27 +106,12 @@ public class StationPage extends InteractiveCustomUIPage<StationPage.Event> {
                 EventData.of("@Search", "#SearchInput.Value"), false);
         events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#OwnedOnly #CheckBox",
                 EventData.of("@OwnedOnly", "#OwnedOnly #CheckBox.Value"), false);
+        events.addEventBinding(CustomUIEventBindingType.Activating, "#PrevPage",
+                EventData.of("Action", "Page").append("Quantity", "-1"), false);
+        events.addEventBinding(CustomUIEventBindingType.Activating, "#NextPage",
+                EventData.of("Action", "Page").append("Quantity", "1"), false);
 
-        TradeConfig config = configManager.current();
-        shownItems = new ArrayList<>(config.basePrices().keySet());
-        List<String> names = new ArrayList<>();
-        for (int i = 0; i < shownItems.size(); i++) {
-            String itemId = shownItems.get(i);
-            String row = rowSelector(i);
-            ui.append("#Rows", ROW); // becomes #Rows[i]
-            ui.set(row + " #Icon.ItemId", itemId);
-            Item item = Item.getAssetMap().getAsset(itemId);
-            ui.set(row + " #Name.Text", Texts.itemName(itemId));
-            names.add(item == null ? itemId : translate(item.getTranslationKey()));
-            ui.set(row + " #BuyStack.Text", Texts.of("ui.buyStack").param("count", buyStackSize(itemId)));
-
-            bind(events, row + " #Sell1", "Sell", itemId, "1");
-            bind(events, row + " #SellAll", "Sell", itemId, "All");
-            bind(events, row + " #Buy1", "Buy", itemId, "1");
-            bind(events, row + " #BuyStack", "Buy", itemId, String.valueOf(buyStackSize(itemId)));
-        }
-        displayNames = names;
-        fillValues(ui, store, ref, config);
+        render(ui, events, store, ref);
     }
 
     @Override
@@ -135,6 +123,12 @@ public class StationPage extends InteractiveCustomUIPage<StationPage.Event> {
             if (event.ownedOnly != null) {
                 filter = filter.withOwnedOnly(event.ownedOnly);
             }
+            page = 0;
+            refresh();
+            return;
+        }
+        if ("Page".equals(event.action) && event.quantity != null) {
+            page += event.quantity.equals("-1") ? -1 : 1; // clamped when rendering
             refresh();
             return;
         }
@@ -162,21 +156,17 @@ public class StationPage extends InteractiveCustomUIPage<StationPage.Event> {
         }
     }
 
-    /** Updates balance, counts and button states in place (keeps the scroll position). */
+    /** Re-sends the header and the current page's rows (after trades, filter or page changes, reloads). */
     void refresh() {
         Ref<EntityStore> ref = playerRef.getReference();
         if (!isCurrentPageOf(ref)) {
             viewers.remove(world, stationPos, this); // player closed it or opened something else
             return;
         }
-        TradeConfig config = configManager.current();
-        if (!shownItems.equals(new ArrayList<>(config.basePrices().keySet()))) {
-            rebuild(); // the set of tradeable items changed (config reload)
-            return;
-        }
         UICommandBuilder ui = new UICommandBuilder();
-        fillValues(ui, ref.getStore(), ref, config);
-        sendUpdate(ui);
+        UIEventBuilder events = new UIEventBuilder();
+        render(ui, events, ref.getStore(), ref);
+        sendUpdate(ui, events, false); // new rows come with new button bindings
     }
 
     World world() {
@@ -195,8 +185,24 @@ public class StationPage extends InteractiveCustomUIPage<StationPage.Event> {
         viewers.remove(world, stationPos, this);
     }
 
-    /** Sets everything that changes after a trade: balance, status, counts, enabled buttons. */
-    private void fillValues(UICommandBuilder ui, Store<EntityStore> store, Ref<EntityStore> ref, TradeConfig config) {
+    /**
+     * Filters the whole item list, then (re)creates only the current page's rows. Rows are rebuilt
+     * rather than reused so each button's event carries its item ID: a click can never act on a
+     * different item than the one shown, even if the page changed in between.
+     */
+    private void render(UICommandBuilder ui, UIEventBuilder events, Store<EntityStore> store, Ref<EntityStore> ref) {
+        TradeConfig config = configManager.current();
+        List<String> configured = new ArrayList<>(config.basePrices().keySet());
+        if (!configured.equals(allItems)) { // first render, or the config was reloaded
+            allItems = configured;
+            List<String> names = new ArrayList<>(allItems.size());
+            for (String itemId : allItems) {
+                Item item = Item.getAssetMap().getAsset(itemId);
+                names.add(item == null ? itemId : translate(item.getTranslationKey()));
+            }
+            displayNames = names;
+        }
+
         Ref<ChunkStore> stationRef = StationAccess.findStation(world, stationPos.x, stationPos.y, stationPos.z);
         long balance = stationRef == null ? 0
                 : stationRef.getStore().getComponent(stationRef, StationComponent.getComponentType()).getBalance();
@@ -208,27 +214,51 @@ public class StationPage extends InteractiveCustomUIPage<StationPage.Event> {
         }
 
         CombinedItemContainer inventory = TradeService.inventoryOf(store, ref);
-        int visible = 0;
-        for (int i = 0; i < shownItems.size(); i++) {
-            String itemId = shownItems.get(i);
-            String row = rowSelector(i);
+        List<String> matching = new ArrayList<>();
+        for (int i = 0; i < allItems.size(); i++) {
+            String itemId = allItems.get(i);
+            // Counting is only needed for the "only items I have" filter.
+            int owned = filter.ownedOnly() ? TradeService.countOwned(inventory, itemId) : 1;
+            if (filter.matches(itemId, displayNames.get(i), owned)) {
+                matching.add(itemId);
+            }
+        }
+        page = Paging.clamp(page, matching.size(), PAGE_SIZE);
+        int pages = Paging.pageCount(matching.size(), PAGE_SIZE);
+        ui.set("#PageLabel.Text", Texts.of("ui.page").param("page", page + 1).param("pages", pages)
+                .param("count", matching.size()));
+        ui.set("#PrevPage.Disabled", page == 0);
+        ui.set("#NextPage.Disabled", page >= pages - 1);
+        ui.set("#NoMatches.Visible", matching.isEmpty());
+
+        ui.clear("#Rows");
+        List<String> shown = Paging.slice(matching, page, PAGE_SIZE);
+        for (int i = 0; i < shown.size(); i++) {
+            String itemId = shown.get(i);
+            String row = "#Rows[" + i + "]";
             long base = config.basePrice(itemId).orElse(0);
             long buyPrice = base > 0 ? Pricing.buyPrice(base, config.spread()) : 0;
             int owned = TradeService.countOwned(inventory, itemId);
-            boolean show = filter.matches(itemId, i < displayNames.size() ? displayNames.get(i) : null, owned);
-            ui.set(row + ".Visible", show);
-            visible += show ? 1 : 0;
+            int stack = buyStackSize(itemId);
 
+            ui.append("#Rows", ROW);
+            ui.set(row + " #Icon.ItemId", itemId);
+            ui.set(row + " #Name.Text", Texts.itemName(itemId));
             ui.set(row + " #Have.Text", Texts.of("ui.have").param("count", owned));
             ui.set(row + " #SellPrice.Text", Texts.of("ui.sellPrice").param("price", base));
             ui.set(row + " #BuyPrice.Text", Texts.of("ui.buyPrice").param("price", buyPrice));
+            ui.set(row + " #BuyStack.Text", Texts.of("ui.buyStack").param("count", stack));
             // Convenience only: TradeService re-checks everything when a button is pressed.
             ui.set(row + " #Sell1.Disabled", owned < 1);
             ui.set(row + " #SellAll.Disabled", owned < 1);
             ui.set(row + " #Buy1.Disabled", buyPrice > balance);
-            ui.set(row + " #BuyStack.Disabled", !canAfford(balance, base, config, buyStackSize(itemId)));
+            ui.set(row + " #BuyStack.Disabled", !canAfford(balance, base, config, stack));
+
+            bind(events, row + " #Sell1", "Sell", itemId, "1");
+            bind(events, row + " #SellAll", "Sell", itemId, "All");
+            bind(events, row + " #Buy1", "Buy", itemId, "1");
+            bind(events, row + " #BuyStack", "Buy", itemId, String.valueOf(stack));
         }
-        ui.set("#NoMatches.Visible", visible == 0);
     }
 
     /** The item name in this player's language, for search; falls back to the key if untranslated. */
@@ -257,10 +287,6 @@ public class StationPage extends InteractiveCustomUIPage<StationPage.Event> {
     private static int buyStackSize(String itemId) {
         Item item = Item.getAssetMap().getAsset(itemId);
         return item == null ? 1 : Math.max(1, item.getMaxStack());
-    }
-
-    private static String rowSelector(int index) {
-        return "#Rows[" + index + "]";
     }
 
     private static void bind(UIEventBuilder events, String selector, String action, String itemId, String quantity) {
