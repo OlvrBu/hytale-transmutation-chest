@@ -38,8 +38,15 @@ public final class TradeConfigManager {
         return current;
     }
 
-    /** (Re)loads the file. Returns true if the new config is now active. */
-    public boolean reload() {
+    /**
+     * Outcome of a reload: on success the new config is active; on failure the previous one stays.
+     * {@code error} is set only on failure; {@code warnings} counts skipped entries.
+     */
+    public record ReloadResult(boolean success, TradeConfig config, int warnings, String error) {
+    }
+
+    /** (Re)loads the file. Never throws: on failure, logs and keeps the previous config. */
+    public ReloadResult reload() {
         try {
             copyDefaultIfMissing();
             String json = Files.readString(file, StandardCharsets.UTF_8);
@@ -50,11 +57,11 @@ public final class TradeConfigManager {
             current = result.config();
             logger.at(Level.INFO).log("Loaded %s: %d tradeable item(s), spread %s",
                     file, current.basePrices().size(), current.spread().toPlainString());
-            return true;
+            return new ReloadResult(true, current, result.warnings().size(), null);
         } catch (TradeConfigException | IOException e) {
             logger.at(Level.SEVERE).log("Could not load %s, keeping previous config (%d tradeable item(s)): %s",
                     file, current.basePrices().size(), e.getMessage());
-            return false;
+            return new ReloadResult(false, current, 0, e.getMessage());
         }
     }
 

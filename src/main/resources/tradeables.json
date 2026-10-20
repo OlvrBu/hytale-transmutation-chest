@@ -1,7 +1,7 @@
 {
-  "spread": 0.25,
+  "spread": 0.00,
   "items": {
-    "Soil_Dirt": 1,
+    "Soil_Dirt": 10,
     "Soil_Sand": 1,
     "Soil_Gravel": 1,
     "Soil_Clay": 2,

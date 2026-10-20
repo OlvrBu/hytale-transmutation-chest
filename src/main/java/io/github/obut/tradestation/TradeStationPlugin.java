@@ -9,6 +9,7 @@ import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import io.github.obut.tradestation.commands.SellCommand;
 import io.github.obut.tradestation.commands.StationBalanceCommand;
+import io.github.obut.tradestation.commands.TradeStationCommand;
 import io.github.obut.tradestation.config.TradeConfigManager;
 import io.github.obut.tradestation.station.StationComponent;
 import io.github.obut.tradestation.station.StationLifecycleSystem;
@@ -68,6 +69,7 @@ public class TradeStationPlugin extends JavaPlugin {
         tradeService = new TradeService(configManager, getLogger());
         getCommandRegistry().registerCommand(new SellCommand(configManager, getLogger()));
         getCommandRegistry().registerCommand(new StationBalanceCommand(getLogger()));
+        getCommandRegistry().registerCommand(new TradeStationCommand(configManager, stationViewers));
 
         // Block data: register our component under the name the block JSON and saved chunks use,
         // and the system that turns a destroyed station into an item carrying its balance.

@@ -26,6 +26,7 @@ import io.github.obut.tradestation.pricing.Pricing;
 import io.github.obut.tradestation.station.StationAccess;
 import io.github.obut.tradestation.station.StationComponent;
 import io.github.obut.tradestation.station.TradeService;
+import io.github.obut.tradestation.text.Texts;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
@@ -77,7 +78,8 @@ public class StationPage extends InteractiveCustomUIPage<StationPage.Event> {
     /** Translated display names, parallel to shownItems, for searching. */
     private List<String> displayNames = List.of();
     private ItemFilter filter = ItemFilter.NONE;
-    private String status = "";
+    /** Result of this player's last trade; null until they trade. */
+    private Message status;
 
     public StationPage(PlayerRef playerRef, World world, Vector3i stationPos, TradeConfigManager configManager,
                        TradeService tradeService, StationViewers viewers) {
@@ -111,9 +113,9 @@ public class StationPage extends InteractiveCustomUIPage<StationPage.Event> {
             ui.append("#Rows", ROW); // becomes #Rows[i]
             ui.set(row + " #Icon.ItemId", itemId);
             Item item = Item.getAssetMap().getAsset(itemId);
-            ui.set(row + " #Name.Text", item == null ? Message.raw(itemId) : Message.translation(item.getTranslationKey()));
+            ui.set(row + " #Name.Text", Texts.itemName(itemId));
             names.add(item == null ? itemId : translate(item.getTranslationKey()));
-            ui.set(row + " #BuyStack.Text", "Buy " + buyStackSize(itemId));
+            ui.set(row + " #BuyStack.Text", Texts.of("ui.buyStack").param("count", buyStackSize(itemId)));
 
             bind(events, row + " #Sell1", "Sell", itemId, "1");
             bind(events, row + " #SellAll", "Sell", itemId, "All");
@@ -177,6 +179,10 @@ public class StationPage extends InteractiveCustomUIPage<StationPage.Event> {
         sendUpdate(ui);
     }
 
+    World world() {
+        return world;
+    }
+
     void closeBecauseStationGone() {
         if (isCurrentPageOf(playerRef.getReference())) {
             close();
@@ -194,8 +200,12 @@ public class StationPage extends InteractiveCustomUIPage<StationPage.Event> {
         Ref<ChunkStore> stationRef = StationAccess.findStation(world, stationPos.x, stationPos.y, stationPos.z);
         long balance = stationRef == null ? 0
                 : stationRef.getStore().getComponent(stationRef, StationComponent.getComponentType()).getBalance();
-        ui.set("#Balance.Text", "Balance: " + balance);
-        ui.set("#Status.Text", status);
+        ui.set("#Balance.Text", Texts.of("ui.balance").param("balance", balance));
+        if (status == null) {
+            ui.set("#Status.Text", ""); // the client rejects an empty Message here (disconnects!), use a plain string
+        } else {
+            ui.set("#Status.Text", status);
+        }
 
         CombinedItemContainer inventory = TradeService.inventoryOf(store, ref);
         int visible = 0;
@@ -209,9 +219,9 @@ public class StationPage extends InteractiveCustomUIPage<StationPage.Event> {
             ui.set(row + ".Visible", show);
             visible += show ? 1 : 0;
 
-            ui.set(row + " #Have.Text", "You have " + owned);
-            ui.set(row + " #SellPrice.Text", "+" + base + " each");
-            ui.set(row + " #BuyPrice.Text", buyPrice + " each");
+            ui.set(row + " #Have.Text", Texts.of("ui.have").param("count", owned));
+            ui.set(row + " #SellPrice.Text", Texts.of("ui.sellPrice").param("price", base));
+            ui.set(row + " #BuyPrice.Text", Texts.of("ui.buyPrice").param("price", buyPrice));
             // Convenience only: TradeService re-checks everything when a button is pressed.
             ui.set(row + " #Sell1.Disabled", owned < 1);
             ui.set(row + " #SellAll.Disabled", owned < 1);

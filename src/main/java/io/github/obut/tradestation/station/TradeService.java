@@ -14,6 +14,8 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import io.github.obut.tradestation.config.TradeConfig;
 import io.github.obut.tradestation.config.TradeConfigManager;
 import io.github.obut.tradestation.pricing.Pricing;
+import io.github.obut.tradestation.text.Texts;
+import com.hypixel.hytale.server.core.Message;
 import org.joml.Vector3d;
 import org.joml.Vector3i;
 
@@ -31,8 +33,8 @@ import java.util.logging.Level;
 public final class TradeService {
 
     /** Outcome shown to the player. */
-    public record Result(boolean success, String message) {
-        static Result fail(String message) {
+    public record Result(boolean success, Message message) {
+        static Result fail(Message message) {
             return new Result(false, message);
         }
     }
@@ -71,7 +73,7 @@ public final class TradeService {
         CombinedItemContainer inventory = inventoryOf(store, player);
         int quantity = Math.min(requested, countOwned(inventory, itemId));
         if (quantity <= 0) {
-            return Result.fail("You don't have any " + itemId + " to sell.");
+            return Result.fail(Texts.of("trade.noneToSell").param("item", itemName(store, player, itemId)));
         }
         long value;
         long newBalance;
@@ -79,22 +81,23 @@ public final class TradeService {
             value = Pricing.sellValue(c.basePrice, quantity);
             newBalance = Pricing.credit(c.station.getBalance(), value);
         } catch (ArithmeticException e) {
-            return Result.fail("The station can't hold that much value.");
+            return Result.fail(Texts.of("trade.balanceFull"));
         }
         // allOrNothing=true: removes exactly `quantity` matching items, or nothing at all.
         if (!inventory.removeItemStack(new ItemStack(itemId, quantity), true, true).succeeded()) {
-            return Result.fail("Couldn't take the items from your inventory. Nothing was sold.");
+            return Result.fail(Texts.of("trade.removeFailed"));
         }
         c.station.setBalance(newBalance);
         StationAccess.markNeedsSaving(c.stationRef);
         log(store, player, "sold", quantity, itemId, value, stationPos, newBalance);
-        return new Result(true, "Sold " + quantity + "x " + itemId + " for " + value + ".");
+        return new Result(true, Texts.of("trade.sold")
+                .param("count", quantity).param("item", itemName(store, player, itemId)).param("value", value));
     }
 
     public Result buy(World world, Vector3i stationPos, Store<EntityStore> store, Ref<EntityStore> player,
                       String itemId, int quantity) {
         if (quantity <= 0) {
-            return Result.fail("Invalid quantity.");
+            return Result.fail(Texts.of("trade.invalidQuantity"));
         }
         Checked c = check(world, stationPos, store, player, itemId);
         if (c.error != null) {
@@ -104,50 +107,57 @@ public final class TradeService {
         try {
             cost = Pricing.buyCost(c.basePrice, configManager.current().spread(), quantity);
         } catch (ArithmeticException e) {
-            return Result.fail("That costs more than any station can hold.");
+            return Result.fail(Texts.of("trade.costOverflow"));
         }
         long newBalance = Pricing.debit(c.station.getBalance(), cost);
         if (newBalance < 0) {
-            return Result.fail("The station's balance (" + c.station.getBalance() + ") doesn't cover " + cost + ".");
+            return Result.fail(Texts.of("trade.insufficientBalance")
+                    .param("balance", c.station.getBalance()).param("cost", cost));
         }
         // allOrNothing=true: if the items don't all fit, nothing is added and we don't debit.
         CombinedItemContainer inventory = inventoryOf(store, player);
         if (!inventory.addItemStack(new ItemStack(itemId, quantity), true, false, true).succeeded()) {
-            return Result.fail("Not enough room in your inventory. Nothing was bought.");
+            return Result.fail(Texts.of("trade.noRoom"));
         }
         c.station.setBalance(newBalance);
         StationAccess.markNeedsSaving(c.stationRef);
         log(store, player, "bought", quantity, itemId, cost, stationPos, newBalance);
-        return new Result(true, "Bought " + quantity + "x " + itemId + " for " + cost + ".");
+        return new Result(true, Texts.of("trade.bought")
+                .param("count", quantity).param("item", itemName(store, player, itemId)).param("cost", cost));
     }
 
     /** Result of the checks shared by buy and sell: either an error, or the station and price. */
     private record Checked(Result error, Ref<ChunkStore> stationRef, StationComponent station, long basePrice) {
-        static Checked error(String message) {
+        static Checked error(Message message) {
             return new Checked(Result.fail(message), null, null, 0);
         }
     }
 
     private Checked check(World world, Vector3i stationPos, Store<EntityStore> store, Ref<EntityStore> player, String itemId) {
         if (store.getExternalData().getWorld() != world) {
-            return Checked.error("You're no longer in the station's world.");
+            return Checked.error(Texts.of("trade.wrongWorld"));
         }
         TransformComponent transform = store.getComponent(player, TransformComponent.getComponentType());
         Vector3d center = new Vector3d(stationPos.x + 0.5, stationPos.y + 0.5, stationPos.z + 0.5);
         if (transform == null || transform.getPosition().distance(center) > MAX_DISTANCE) {
-            return Checked.error("You're too far from the station.");
+            return Checked.error(Texts.of("trade.tooFar"));
         }
         Ref<ChunkStore> stationRef = StationAccess.findStation(world, stationPos.x, stationPos.y, stationPos.z);
         if (stationRef == null) {
-            return Checked.error("This station no longer exists.");
+            return Checked.error(Texts.of("trade.stationGone"));
         }
         TradeConfig config = configManager.current();
         OptionalLong basePrice = config.basePrice(itemId);
         if (basePrice.isEmpty()) {
-            return Checked.error(itemId + " can't be traded (anymore).");
+            return Checked.error(Texts.of("trade.notTradeable").param("item", itemName(store, player, itemId)));
         }
         StationComponent station = stationRef.getStore().getComponent(stationRef, StationComponent.getComponentType());
         return new Checked(null, stationRef, station, basePrice.getAsLong());
+    }
+
+    private static String itemName(Store<EntityStore> store, Ref<EntityStore> player, String itemId) {
+        PlayerRef playerRef = store.getComponent(player, PlayerRef.getComponentType());
+        return Texts.itemNameText(itemId, playerRef == null ? null : playerRef.getLanguage());
     }
 
     private void log(Store<EntityStore> store, Ref<EntityStore> player, String verb, int quantity, String itemId,

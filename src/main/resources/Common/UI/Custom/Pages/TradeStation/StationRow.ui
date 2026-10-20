@@ -42,12 +42,12 @@ Group {
 
   $C.@SmallSecondaryTextButton #Sell1 {
     Anchor: (Left: 8, Width: 72, Height: $C.@SmallButtonHeight);
-    Text: "Sell 1";
+    Text: %tradestation.ui.sell1;
   }
 
   $C.@SmallSecondaryTextButton #SellAll {
     Anchor: (Left: 4, Width: 108, Height: $C.@SmallButtonHeight);
-    Text: "Sell all";
+    Text: %tradestation.ui.sellAll;
   }
 
   Label #BuyPrice {
@@ -57,11 +57,11 @@ Group {
 
   $C.@SmallSecondaryTextButton #Buy1 {
     Anchor: (Left: 8, Width: 72, Height: $C.@SmallButtonHeight);
-    Text: "Buy 1";
+    Text: %tradestation.ui.buy1;
   }
 
   $C.@SmallSecondaryTextButton #BuyStack {
     Anchor: (Left: 4, Width: 108, Height: $C.@SmallButtonHeight);
-    Text: "Buy";
+    Text: "";
   }
 }

@@ -2,7 +2,6 @@ package io.github.obut.tradestation.commands;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
@@ -15,6 +14,7 @@ import com.hypixel.hytale.server.core.util.TargetUtil;
 import com.hypixel.hytale.logger.HytaleLogger;
 import io.github.obut.tradestation.station.StationAccess;
 import io.github.obut.tradestation.station.StationComponent;
+import io.github.obut.tradestation.text.Texts;
 import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
@@ -30,10 +30,10 @@ public class StationBalanceCommand extends AbstractPlayerCommand {
 
     private final HytaleLogger logger;
     private final RequiredArg<Integer> amountArg =
-            withRequiredArg("amount", "New balance (>= 0)", ArgTypes.INTEGER);
+            withRequiredArg("amount", Texts.key("commands.stationbalance.amount.desc"), ArgTypes.INTEGER);
 
     public StationBalanceCommand(HytaleLogger logger) {
-        super("stationbalance", "Dev: set the balance of the Trade Station you're looking at");
+        super("stationbalance", Texts.key("commands.stationbalance.desc"));
         this.logger = logger;
     }
 
@@ -42,7 +42,7 @@ public class StationBalanceCommand extends AbstractPlayerCommand {
                            @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef, @Nonnull World world) {
         int amount = amountArg.get(context);
         if (amount < 0) {
-            context.sendMessage(Message.raw("Balance can't be negative."));
+            context.sendMessage(Texts.of("commands.stationbalance.negative"));
             return;
         }
         Vector3i target = TargetUtil.getTargetBlock(ref, MAX_REACH, store);
@@ -51,7 +51,7 @@ public class StationBalanceCommand extends AbstractPlayerCommand {
         }
         Ref<ChunkStore> stationRef = target == null ? null : StationAccess.findStation(world, target.x, target.y, target.z);
         if (stationRef == null) {
-            context.sendMessage(Message.raw("Look at a Trade Station (within " + (int) MAX_REACH + " blocks)."));
+            context.sendMessage(Texts.of("commands.stationbalance.noTarget").param("reach", (int) MAX_REACH));
             return;
         }
         StationComponent station = stationRef.getStore().getComponent(stationRef, StationComponent.getComponentType());
@@ -61,6 +61,6 @@ public class StationBalanceCommand extends AbstractPlayerCommand {
 
         logger.at(Level.INFO).log("[stationbalance] %s set station at (%d, %d, %d) from %d to %d",
                 playerRef.getUsername(), target.x, target.y, target.z, old, amount);
-        context.sendMessage(Message.raw("Station balance: " + old + " -> " + amount));
+        context.sendMessage(Texts.of("commands.stationbalance.changed").param("old", old).param("new", amount));
     }
 }

@@ -50,6 +50,15 @@ public final class StationViewers {
         }
     }
 
+    /** Refreshes every open station page, each on its own world's thread (e.g. after a config reload). */
+    public void refreshEverywhere() {
+        for (Set<StationPage> set : pages.values()) {
+            for (StationPage page : List.copyOf(set)) {
+                page.world().execute(page::refresh);
+            }
+        }
+    }
+
     /** Closes every open page of this station, e.g. because it was removed. Call on its world thread. */
     public void closeAll(World world, Vector3i pos) {
         for (StationPage page : viewersOf(world, pos)) {

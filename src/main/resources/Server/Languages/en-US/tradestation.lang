@@ -1,2 +1,46 @@
 items.Trade_Station.name = Trade Station
 items.Trade_Station.description = Sell building blocks to the station, or buy them back from its balance.
+
+commands.tradestation.desc = Trade Station administration
+commands.tradestation.reload.desc = Reload tradeables.json
+commands.tradestation.reload.success = Reloaded tradeables.json: {count, plural, one {1 tradeable item} other {{count, number} tradeable items}}, spread {spread}.
+commands.tradestation.reload.warnings = {count, plural, one {1 entry was skipped} other {{count, number} entries were skipped}}, see the server log.
+commands.tradestation.reload.failed = Could not reload tradeables.json, keeping the previous config: {error}
+commands.sell.desc = Dev: sell the item stack in your hand
+commands.sell.selectHotbar = Select a hotbar slot to sell from.
+commands.sell.nothingHeld = You're not holding anything to sell.
+commands.sell.tooValuable = That stack is worth too much to sell.
+commands.sell.inventoryChanged = Your inventory changed, nothing was sold. Try again.
+commands.sell.sold = Sold {count, number}x {item} for {value, number}. (Dev command: no station balance, the items are gone.)
+commands.stationbalance.desc = Dev: set the balance of the Trade Station you're looking at
+commands.stationbalance.amount.desc = New balance (0 or more)
+commands.stationbalance.negative = The balance can't be negative.
+commands.stationbalance.noTarget = Look at a Trade Station (within {reach} blocks).
+commands.stationbalance.changed = Station balance: {old, number} -> {new, number}
+
+trade.notTradeable = {item} can't be traded.
+trade.noneToSell = You don't have any {item} to sell.
+trade.balanceFull = The station can't hold that much value.
+trade.removeFailed = Couldn't take the items from your inventory. Nothing was sold.
+trade.sold = Sold {count, number}x {item} for {value, number}.
+trade.invalidQuantity = Invalid quantity.
+trade.costOverflow = That costs more than any station can hold.
+trade.insufficientBalance = The station's balance ({balance, number}) doesn't cover {cost, number}.
+trade.noRoom = Not enough room in your inventory. Nothing was bought.
+trade.bought = Bought {count, number}x {item} for {cost, number}.
+trade.wrongWorld = You're no longer in the station's world.
+trade.tooFar = You're too far from the station.
+trade.stationGone = This station no longer exists.
+
+ui.title = Trade Station
+ui.balance = Balance: {balance, number}
+ui.searchPlaceholder = Search items...
+ui.ownedOnly = Only items I have
+ui.noMatches = No items match your filter.
+ui.have = You have {count, number}
+ui.sellPrice = +{price, number} each
+ui.buyPrice = {price, number} each
+ui.sell1 = Sell 1
+ui.sellAll = Sell all
+ui.buy1 = Buy 1
+ui.buyStack = Buy {count, number}
