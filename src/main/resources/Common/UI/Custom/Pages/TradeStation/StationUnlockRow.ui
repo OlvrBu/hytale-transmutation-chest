@@ -36,6 +36,12 @@ Group {
     }
   }
 
+  // Opens the details view listing this unlock's items.
+  $C.@SmallSecondaryTextButton #ViewItems {
+    Anchor: (Left: 8, Width: 90, Height: $C.@SmallButtonHeight);
+    Text: %tradestation.ui.viewItems;
+  }
+
   Label #Progress {
     Anchor: (Width: 150);
     Style: (FontSize: 15, TextColor: #E8A93B, HorizontalAlignment: End, VerticalAlignment: Center);

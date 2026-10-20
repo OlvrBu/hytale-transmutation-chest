@@ -129,6 +129,13 @@ Group #Window {
         LayoutMode: Left;
         Padding: (Horizontal: 8);
 
+        // Details view of an unlock only: back to the unlock list.
+        $C.@SmallSecondaryTextButton #InspectBack {
+          Anchor: (Width: 110, Height: $C.@SmallButtonHeight, Right: 12);
+          Text: %tradestation.ui.back;
+          Visible: false;
+        }
+
         Label #Balance {
           FlexWeight: 1;
           Style: (FontSize: 20, TextColor: #E8A93B, RenderBold: true, VerticalAlignment: Center);

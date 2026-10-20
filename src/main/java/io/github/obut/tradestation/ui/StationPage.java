@@ -132,6 +132,10 @@ public class StationPage extends InteractiveCustomUIPage<StationPage.Event> {
     private boolean scrollToTop = false;
     /** Put the current tab's search text into the (shared) search field on the next render. */
     private boolean restoreSearchText = false;
+    /** Unlock whose items are shown (details view on the Unlock tab), or null for the unlock list. */
+    private String inspecting;
+    /** Unlock-list page to return to from the details view. */
+    private int unlockListPage;
     /** Result of this player's last trade; null until they trade. */
     private Message status;
 
@@ -164,6 +168,8 @@ public class StationPage extends InteractiveCustomUIPage<StationPage.Event> {
                 EventData.of("@Tab", "#Tabs.SelectedTab"), false);
         events.addEventBinding(CustomUIEventBindingType.Activating, "#PrevPage",
                 EventData.of("Action", "Page").append("Quantity", "-1"), false);
+        events.addEventBinding(CustomUIEventBindingType.Activating, "#InspectBack",
+                EventData.of("Action", "InspectBack"), false);
         events.addEventBinding(CustomUIEventBindingType.Activating, "#NextPage",
                 EventData.of("Action", "Page").append("Quantity", "1"), false);
 
@@ -177,6 +183,7 @@ public class StationPage extends InteractiveCustomUIPage<StationPage.Event> {
             if (selected != null && selected != tab) {
                 tab = selected;
                 tabChosen = true;
+                inspecting = null;
                 page = 0;
                 scrollToTop = true;
                 restoreSearchText = true;
@@ -199,6 +206,21 @@ public class StationPage extends InteractiveCustomUIPage<StationPage.Event> {
         if (event.search != null) {
             searches.put(tab, event.search);
             page = 0;
+            scrollToTop = true;
+            refresh();
+            return;
+        }
+        if ("Inspect".equals(event.action) && event.itemId != null) {
+            inspecting = event.itemId; // the unlock ID
+            unlockListPage = page;
+            page = 0;
+            scrollToTop = true;
+            refresh();
+            return;
+        }
+        if ("InspectBack".equals(event.action)) {
+            inspecting = null;
+            page = unlockListPage;
             scrollToTop = true;
             refresh();
             return;
@@ -317,8 +339,15 @@ public class StationPage extends InteractiveCustomUIPage<StationPage.Event> {
             ui.set("#Status.Text", status);
         }
         ui.set("#Tabs.SelectedTab", tab.id); // keep the client's tab bar in sync (e.g. after a rebuild)
-        ui.set("#TabTitle.Text", Texts.of(tab.titleKey));
-        ui.set("#UnlockToggles.Visible", tab == Tab.UNLOCK);
+        if (inspecting != null && !config.unlocks().containsKey(inspecting)) {
+            inspecting = null; // unlock was removed meanwhile (config edit)
+        }
+        boolean inspect = tab == Tab.UNLOCK && inspecting != null;
+        ui.set("#TabTitle.Text", inspect
+                ? Texts.of("ui.titleInspect").param("unlock", Texts.unlockNameText(inspecting, playerRef.getLanguage()))
+                : Texts.of(tab.titleKey));
+        ui.set("#UnlockToggles.Visible", tab == Tab.UNLOCK && !inspect);
+        ui.set("#InspectBack.Visible", inspect);
         if (restoreSearchText) {
             ui.set("#SearchInput.Value", searches.getOrDefault(tab, ""));
             restoreSearchText = false;
@@ -326,11 +355,11 @@ public class StationPage extends InteractiveCustomUIPage<StationPage.Event> {
 
         CombinedItemContainer inventory = TradeService.inventoryOf(store, ref);
         ui.clear("#Rows");
-        int matches = tab == Tab.UNLOCK
-                ? renderUnlocks(ui, events, inventory, config, unlocks)
+        int matches = inspect ? renderInspect(ui, inventory, config)
+                : tab == Tab.UNLOCK ? renderUnlocks(ui, events, inventory, config, unlocks)
                 : renderItems(ui, events, inventory, config, unlocks, balance);
 
-        int pages = Paging.pageCount(matches, tab == Tab.UNLOCK ? PAGE_SIZE : GRID_PAGE_SIZE);
+        int pages = Paging.pageCount(matches, tab == Tab.UNLOCK && !inspect ? PAGE_SIZE : GRID_PAGE_SIZE);
         ui.set("#PageLabel.Text", Texts.of("ui.page").param("page", page + 1).param("pages", pages)
                 .param("count", matches));
         ui.set("#PrevPage.Disabled", page == 0);
@@ -392,6 +421,30 @@ public class StationPage extends InteractiveCustomUIPage<StationPage.Event> {
         return matching.size();
     }
 
+    /**
+     * Details view of one unlock: the items that require it, as squares with their price (hover shows
+     * the name). Read-only. Returns the item count.
+     */
+    private int renderInspect(UICommandBuilder ui, CombinedItemContainer inventory, TradeConfig config) {
+        List<String> items = config.itemsUsing(inspecting);
+        ui.set("#NoMatches.Text", Texts.of("ui.inspectEmpty"));
+        page = Paging.clamp(page, items.size(), GRID_PAGE_SIZE);
+        ui.append("#Rows", GRID);
+        List<String> shown = Paging.slice(items, page, GRID_PAGE_SIZE);
+        for (int i = 0; i < shown.size(); i++) {
+            String itemId = shown.get(i);
+            String cell = "#Grid[" + i + "]";
+            ui.append("#Grid", CELL);
+            ui.set(cell + " #Icon.ItemId", itemId);
+            ui.set(cell + " #Price.Text", Texts.of("ui.cellNumber").param("n", config.basePrice(itemId).orElse(0)));
+            int owned = TradeService.countOwned(inventory, itemId);
+            if (owned > 0) {
+                ui.set(cell + " #Count.Text", Texts.of("ui.cellNumber").param("n", owned));
+            }
+        }
+        return items.size();
+    }
+
     /** Unlock tab: every configured unlock with progress and donate buttons. Returns the match count. */
     private int renderUnlocks(UICommandBuilder ui, UIEventBuilder events, CombinedItemContainer inventory,
                               TradeConfig config, UnlockProgress unlocks) {
@@ -444,6 +497,9 @@ public class StationPage extends InteractiveCustomUIPage<StationPage.Event> {
                     .param("items", itemCounts.getOrDefault(unlockId, 0)).param("have", have));
             ui.set(row + " #Progress.Text", done ? Texts.of("ui.progressDone")
                     : Texts.of("ui.progress").param("donated", unlocks.donatedTo(unlockId)).param("amount", unlock.amount()));
+            ui.set(row + " #ViewItems.Disabled", itemCounts.getOrDefault(unlockId, 0) == 0);
+            events.addEventBinding(CustomUIEventBindingType.Activating, row + " #ViewItems",
+                    EventData.of("Action", "Inspect").append("Item", unlockId), false);
             ui.set(row + " #DonateButtons.Visible", !done);
             ui.set(row + " #UnlockedLabel.Visible", done);
             if (!done) {
