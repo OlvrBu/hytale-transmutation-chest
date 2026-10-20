@@ -97,6 +97,13 @@ Single file serving as both whitelist and price list — an item is tradeable **
 
 Milestones 4's risk checks come before UI work on purpose: they're the parts most likely to force a design change.
 
+### Status (as of 2026-10-20): all milestones done, version 1.0.0 (tag `v1.0.0`)
+
+- 1–5 done and confirmed in game. Milestone 4: explosions and builder tools untested (no block-destroying explosive found in 0.7.2; builder tools skipped); removal is handled generically, so they should work. Multi-viewer refresh is implemented but untested with two real players.
+- 6 done except the **final model/texture, deferred by the owner** (station still reuses the Builder's Workbench model). Permissions: plugin commands are operator-only by default, nothing extra needed. Localization: English only, structured for more languages.
+- Beyond the original plan (all owner-requested): price generator + loop checker, recipe, `/tradestation` admin commands (reload, generateprices, checkprices, sell/buy/setbalance, unlock/lock, item, unlockdef, spread), the unlock system, Sell/Buy/Unlock tabs in a workbench-style layout with grid, paging and per-tab search, first-launch generation of tradeables.json.
+- Still open (owner): final names and meta information (`mod_description`, `mod_url`, possibly the mod name), custom model.
+
 ## Code conventions
 
 - One responsibility per class: config loading, pricing, station state, interaction handling, UI.
