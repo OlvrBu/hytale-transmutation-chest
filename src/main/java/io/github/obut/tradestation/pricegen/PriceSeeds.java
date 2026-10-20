@@ -22,17 +22,56 @@ import java.util.Map;
  *   "spread": 0.25,                         // copied into the generated tradeables.json
  *   "excludeCategories": ["Furniture.Benches", "Tool."],  // prefix match on item categories
  *   "excludeItems": ["Trade_Station", "Bench_*"],   // exact IDs, or prefixes ending in *
- *   "seeds": { "Rock_Stone_Cobble": 10 }    // raw prices, positive integers
+ *   "seeds": { "Rock_Stone_Cobble": 10 },   // raw prices, positive integers
+ *   "unlocks": {                            // optional; without it nothing needs unlocking
+ *     "defaultAmount": 500,                 // items to donate per unlock
+ *     "amounts": { "Clay": 300 },           // per-unlock overrides
+ *     "groups": { "Clay": ["Soil_Clay_Red", "Soil_Clay_Blue"] }  // several seeds, one unlock
+ *   }
  * }
  * </pre>
+ * Each seed is its own unlock (ID = seed item ID) unless it belongs to a group (ID = group name).
  */
 public record PriceSeeds(BigDecimal spread, Map<String, Long> seeds, List<String> excludeCategories,
-                         List<String> excludeItems) {
+                         List<String> excludeItems, Long unlockDefaultAmount, Map<String, Long> unlockAmounts,
+                         Map<String, List<String>> unlockGroups) {
 
     public PriceSeeds {
         seeds = java.util.Collections.unmodifiableMap(new LinkedHashMap<>(seeds));
         excludeCategories = List.copyOf(excludeCategories);
         excludeItems = List.copyOf(excludeItems);
+        unlockAmounts = Map.copyOf(unlockAmounts);
+        LinkedHashMap<String, List<String>> groups = new LinkedHashMap<>();
+        unlockGroups.forEach((id, members) -> groups.put(id, List.copyOf(members)));
+        unlockGroups = java.util.Collections.unmodifiableMap(groups);
+    }
+
+    public PriceSeeds(BigDecimal spread, Map<String, Long> seeds, List<String> excludeCategories, List<String> excludeItems) {
+        this(spread, seeds, excludeCategories, excludeItems, null, Map.of(), Map.of());
+    }
+
+    /** Whether items need unlocking at all. */
+    public boolean unlocksEnabled() {
+        return unlockDefaultAmount != null;
+    }
+
+    /** The unlock a seed belongs to: its group's name, or the seed's own ID. */
+    public String unlockIdFor(String seedId) {
+        for (var group : unlockGroups.entrySet()) {
+            if (group.getValue().contains(seedId)) {
+                return group.getKey();
+            }
+        }
+        return seedId;
+    }
+
+    /** Items that count as donations for an unlock: the group's members, or the seed itself. */
+    public List<String> acceptedBy(String unlockId) {
+        return unlockGroups.getOrDefault(unlockId, List.of(unlockId));
+    }
+
+    public long amountFor(String unlockId) {
+        return unlockAmounts.getOrDefault(unlockId, unlockDefaultAmount);
     }
 
     /** Whether a priced item may be put in the generated list. */
@@ -64,6 +103,9 @@ public record PriceSeeds(BigDecimal spread, Map<String, Long> seeds, List<String
         Map<String, Long> seeds = null;
         List<String> excludeCategories = new ArrayList<>();
         List<String> excludeItems = new ArrayList<>();
+        Long defaultAmount = null;
+        Map<String, Long> amounts = new LinkedHashMap<>();
+        Map<String, List<String>> groups = new LinkedHashMap<>();
         try (JsonReader reader = new JsonReader(new StringReader(json))) {
             reader.setStrictness(Strictness.STRICT);
             reader.beginObject();
@@ -104,6 +146,35 @@ public record PriceSeeds(BigDecimal spread, Map<String, Long> seeds, List<String
                         }
                         reader.endObject();
                     }
+                    case "unlocks" -> {
+                        reader.beginObject();
+                        while (reader.hasNext()) {
+                            String field = reader.nextName();
+                            switch (field) {
+                                case "defaultAmount" -> defaultAmount = readPositive(reader, "unlocks.defaultAmount");
+                                case "amounts" -> {
+                                    reader.beginObject();
+                                    while (reader.hasNext()) {
+                                        String id = reader.nextName();
+                                        amounts.put(id, readPositive(reader, "unlocks.amounts." + id));
+                                    }
+                                    reader.endObject();
+                                }
+                                case "groups" -> {
+                                    reader.beginObject();
+                                    while (reader.hasNext()) {
+                                        String id = reader.nextName();
+                                        List<String> members = new ArrayList<>();
+                                        readStrings(reader, members);
+                                        groups.put(id, members);
+                                    }
+                                    reader.endObject();
+                                }
+                                default -> throw new TradeConfigException("Unknown key \"unlocks." + field + "\"");
+                            }
+                        }
+                        reader.endObject();
+                    }
                     default -> throw new TradeConfigException("Unknown key \"" + key + "\"");
                 }
             }
@@ -117,7 +188,39 @@ public record PriceSeeds(BigDecimal spread, Map<String, Long> seeds, List<String
         if (spread == null || seeds == null) {
             throw new TradeConfigException("\"spread\" and \"seeds\" are required");
         }
-        return new PriceSeeds(spread, seeds, excludeCategories, excludeItems);
+        if (!groups.isEmpty() && defaultAmount == null) {
+            throw new TradeConfigException("\"unlocks.defaultAmount\" is required when unlocks are configured");
+        }
+        java.util.Set<String> grouped = new java.util.HashSet<>();
+        for (var group : groups.entrySet()) {
+            if (seeds.containsKey(group.getKey())) {
+                throw new TradeConfigException("unlock group \"" + group.getKey() + "\" has the same name as a seed");
+            }
+            for (String member : group.getValue()) {
+                if (!seeds.containsKey(member)) {
+                    throw new TradeConfigException("unlock group \"" + group.getKey() + "\": \"" + member + "\" is not a seed");
+                }
+                if (!grouped.add(member)) {
+                    throw new TradeConfigException("seed \"" + member + "\" is in more than one unlock group");
+                }
+            }
+        }
+        return new PriceSeeds(spread, seeds, excludeCategories, excludeItems, defaultAmount, amounts, groups);
+    }
+
+    private static long readPositive(JsonReader reader, String name) throws IOException, TradeConfigException {
+        if (reader.peek() != JsonToken.NUMBER) {
+            throw new TradeConfigException("\"" + name + "\" must be a number");
+        }
+        try {
+            long value = new BigDecimal(reader.nextString()).longValueExact();
+            if (value <= 0) {
+                throw new TradeConfigException("\"" + name + "\" must be positive");
+            }
+            return value;
+        } catch (ArithmeticException e) {
+            throw new TradeConfigException("\"" + name + "\" must be a whole number");
+        }
     }
 
     private static void readStrings(JsonReader reader, List<String> into) throws IOException {

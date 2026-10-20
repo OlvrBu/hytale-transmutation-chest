@@ -15,6 +15,10 @@ import io.github.obut.tradestation.config.TradeConfig;
 import io.github.obut.tradestation.config.TradeConfigManager;
 import io.github.obut.tradestation.pricing.Pricing;
 import io.github.obut.tradestation.text.Texts;
+import io.github.obut.tradestation.unlock.UnlockProgress;
+import com.hypixel.hytale.server.core.inventory.ItemStack;
+import java.util.ArrayList;
+import java.util.List;
 import com.hypixel.hytale.server.core.Message;
 import org.joml.Vector3d;
 import org.joml.Vector3i;
@@ -134,6 +138,23 @@ public final class TradeService {
     }
 
     private Checked check(World world, Vector3i stationPos, Store<EntityStore> store, Ref<EntityStore> player, String itemId) {
+        Checked located = locate(world, stationPos, store, player);
+        if (located.error != null) {
+            return located;
+        }
+        TradeConfig config = configManager.current();
+        OptionalLong basePrice = config.basePrice(itemId);
+        if (basePrice.isEmpty()) {
+            return Checked.error(Texts.of("trade.notTradeable").param("item", itemName(store, player, itemId)));
+        }
+        if (!located.station.getUnlocks().canTrade(itemId, config)) {
+            return Checked.error(Texts.of("trade.locked").param("item", itemName(store, player, itemId)));
+        }
+        return new Checked(null, located.stationRef, located.station, basePrice.getAsLong());
+    }
+
+    /** Checks shared by trades and donations: same world, close enough, station still there. */
+    private Checked locate(World world, Vector3i stationPos, Store<EntityStore> store, Ref<EntityStore> player) {
         if (store.getExternalData().getWorld() != world) {
             return Checked.error(Texts.of("trade.wrongWorld"));
         }
@@ -146,18 +167,76 @@ public final class TradeService {
         if (stationRef == null) {
             return Checked.error(Texts.of("trade.stationGone"));
         }
-        TradeConfig config = configManager.current();
-        OptionalLong basePrice = config.basePrice(itemId);
-        if (basePrice.isEmpty()) {
-            return Checked.error(Texts.of("trade.notTradeable").param("item", itemName(store, player, itemId)));
-        }
         StationComponent station = stationRef.getStore().getComponent(stationRef, StationComponent.getComponentType());
-        return new Checked(null, stationRef, station, basePrice.getAsLong());
+        return new Checked(null, stationRef, station, 0);
+    }
+
+    /**
+     * Donates up to {@code requested} accepted items (from anywhere in the inventory) towards an
+     * unlock. Capped at what the unlock still needs; the items are consumed, nothing is credited
+     * (decided: pure investment). All-or-nothing like trades.
+     */
+    public Result donate(World world, Vector3i stationPos, Store<EntityStore> store, Ref<EntityStore> player,
+                         String unlockId, int requested) {
+        Checked c = locate(world, stationPos, store, player);
+        if (c.error != null) {
+            return c.error;
+        }
+        TradeConfig config = configManager.current();
+        TradeConfig.Unlock unlock = config.unlocks().get(unlockId);
+        String name = Texts.unlockNameText(unlockId, language(store, player));
+        if (unlock == null) {
+            return Result.fail(Texts.of("unlock.unknown").param("unlock", unlockId));
+        }
+        UnlockProgress progress = c.station.getUnlocks();
+        long remaining = progress.remaining(unlockId, config);
+        if (remaining <= 0) {
+            return Result.fail(Texts.of("unlock.alreadyUnlocked").param("unlock", name));
+        }
+
+        // Take accepted item types in config order until we have enough.
+        CombinedItemContainer inventory = inventoryOf(store, player);
+        long wanted = Math.min(requested, remaining);
+        List<ItemStack> payment = new ArrayList<>();
+        long collected = 0;
+        for (String accepted : unlock.accepts()) {
+            if (collected >= wanted) {
+                break;
+            }
+            int take = (int) Math.min(countOwned(inventory, accepted), wanted - collected);
+            if (take > 0) {
+                payment.add(new ItemStack(accepted, take));
+                collected += take;
+            }
+        }
+        if (collected <= 0) {
+            return Result.fail(Texts.of("unlock.nothingToDonate").param("unlock", name));
+        }
+        // allOrNothing=true: removes all of these stacks, or nothing.
+        if (!inventory.removeItemStacks(payment, true, true).succeeded()) {
+            return Result.fail(Texts.of("trade.removeFailed"));
+        }
+        boolean completed = progress.donate(unlockId, collected, config);
+        StationAccess.markNeedsSaving(c.stationRef);
+
+        PlayerRef playerRef = store.getComponent(player, PlayerRef.getComponentType());
+        logger.at(Level.INFO).log("[unlock] %s donated %d to %s at station (%d, %d, %d)%s",
+                playerRef == null ? "?" : playerRef.getUsername(), collected, unlockId,
+                stationPos.x, stationPos.y, stationPos.z, completed ? ", now UNLOCKED" : "");
+        if (completed) {
+            return new Result(true, Texts.of("unlock.completed").param("unlock", name));
+        }
+        return new Result(true, Texts.of("unlock.donated").param("count", collected).param("unlock", name)
+                .param("donated", progress.donatedTo(unlockId)).param("amount", unlock.amount()));
     }
 
     private static String itemName(Store<EntityStore> store, Ref<EntityStore> player, String itemId) {
+        return Texts.itemNameText(itemId, language(store, player));
+    }
+
+    private static String language(Store<EntityStore> store, Ref<EntityStore> player) {
         PlayerRef playerRef = store.getComponent(player, PlayerRef.getComponentType());
-        return Texts.itemNameText(itemId, playerRef == null ? null : playerRef.getLanguage());
+        return playerRef == null ? null : playerRef.getLanguage();
     }
 
     private void log(Store<EntityStore> store, Ref<EntityStore> player, String verb, int quantity, String itemId,

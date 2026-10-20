@@ -76,6 +76,7 @@ public class StationLifecycleSystem extends RefSystem<ChunkStore> {
             return;
         }
         long balance = station.getBalance();
+        StationComponent snapshot = (StationComponent) station.clone(); // the original goes away with the entity
         Vector3i pos = positionOf(ref, commandBuffer);
         if (pos == null) {
             logger.at(Level.WARNING).log("Station removed (%s) at an unknown position; balance %d LOST", reason, balance);
@@ -84,27 +85,28 @@ public class StationLifecycleSystem extends RefSystem<ChunkStore> {
         World world = store.getExternalData().getWorld();
         // We're inside the chunk store's update. Look at the result and spawn the drop afterwards,
         // as a separate task on the world thread.
-        world.execute(() -> afterRemoval(world, pos, balance, reason));
+        world.execute(() -> afterRemoval(world, pos, snapshot, reason));
     }
 
-    private void afterRemoval(World world, Vector3i pos, long balance, RemoveReason reason) {
+    private void afterRemoval(World world, Vector3i pos, StationComponent station, RemoveReason reason) {
+        long balance = station.getBalance();
         // The block entity is also replaced (removed + re-added) when the block itself stays,
         // e.g. when placing a station item restores its saved data onto the fresh block.
         if (StationAccess.findStation(world, pos.x, pos.y, pos.z) != null) {
-            if (balance != 0) {
-                logger.at(Level.WARNING).log("Station data at %s was replaced (%s); previous balance %d not carried over",
-                        format(pos), reason, balance);
+            if (!station.isFresh()) {
+                logger.at(Level.WARNING).log("Station data at %s was replaced (%s); previous balance %d and %d unlock(s) not carried over",
+                        format(pos), reason, balance, station.getUnlocks().unlocked().size());
             }
             return;
         }
         viewers.closeAll(world, pos); // nobody can keep trading with a station that's gone
         String nowThere = StationAccess.blockTypeId(world, pos.x, pos.y, pos.z);
         Store<EntityStore> entities = world.getEntityStore().getStore();
-        Holder<EntityStore>[] drops = ItemComponent.generateItemDrops(entities, List.of(StationItem.create(balance)),
+        Holder<EntityStore>[] drops = ItemComponent.generateItemDrops(entities, List.of(StationItem.create(station)),
                 new Vector3d(pos.x + 0.5, pos.y, pos.z + 0.5), Rotation3f.IDENTITY);
         entities.addEntities(drops, AddReason.SPAWN);
-        logger.at(Level.INFO).log("Station at %s removed (%s, block now %s); dropped station item with balance %d",
-                format(pos), reason, nowThere, balance);
+        logger.at(Level.INFO).log("Station at %s removed (%s, block now %s); dropped station item with balance %d, unlocks %s",
+                format(pos), reason, nowThere, balance, station.getUnlocks().unlocked());
     }
 
     private static Vector3i positionOf(Ref<ChunkStore> ref, CommandBuffer<ChunkStore> commandBuffer) {

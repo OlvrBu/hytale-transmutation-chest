@@ -49,4 +49,21 @@ public final class Texts {
         Item item = Item.getAssetMap().getAsset(itemId);
         return item == null ? Message.raw(itemId) : Message.translation(item.getTranslationKey());
     }
+
+    /**
+     * Display name of an unlock: an unlock named after an item (a single seed) uses that item's name;
+     * a group (e.g. "Clay") uses the key {@code unlocks.<id>} from tradestation.lang.
+     */
+    public static Message unlockName(String unlockId) {
+        return Item.getAssetMap().getAsset(unlockId) != null ? itemName(unlockId) : of("unlocks." + unlockId);
+    }
+
+    /** {@link #unlockName} as server-translated plain text, for message parameters. */
+    public static String unlockNameText(String unlockId, String language) {
+        if (Item.getAssetMap().getAsset(unlockId) != null) {
+            return itemNameText(unlockId, language);
+        }
+        String name = I18nModule.get().getMessage(language, PREFIX + "unlocks." + unlockId);
+        return name == null ? unlockId : name;
+    }
 }

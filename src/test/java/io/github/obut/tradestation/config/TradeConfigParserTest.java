@@ -163,4 +163,57 @@ class TradeConfigParserTest {
         assertEquals(List.of(), result.warnings());
         assertFalse(result.config().basePrices().isEmpty());
     }
+
+    @Test
+    void parsesUnlocksAndRequirements() throws TradeConfigException {
+        var result = parse("""
+                {
+                  "spread": 0,
+                  "unlocks": {
+                    "Stone": { "amount": 500, "accepts": ["Rock_Stone"] },
+                    "Clay": { "amount": 300, "accepts": ["Soil_Dirt", "Not_An_Item"] }
+                  },
+                  "items": {
+                    "Rock_Stone": { "price": 10, "requires": ["Stone"] },
+                    "Soil_Dirt": { "price": 10, "requires": ["Stone", ["Clay", "Stone"]] },
+                    "Soil_Sand": 4
+                  }
+                }
+                """);
+        TradeConfig config = result.config();
+        assertEquals(List.of("Stone", "Clay"), List.copyOf(config.unlocks().keySet()));
+        assertEquals(500, config.unlocks().get("Stone").amount());
+        assertEquals(List.of("Soil_Dirt"), config.unlocks().get("Clay").accepts()); // unknown accepted item dropped
+        assertEquals(List.of(Set.of("Stone")), config.requirementsOf("Rock_Stone"));
+        assertEquals(List.of(Set.of("Stone"), Set.of("Clay", "Stone")), config.requirementsOf("Soil_Dirt"));
+        assertEquals(List.of(), config.requirementsOf("Soil_Sand"));
+        assertEquals(4, config.basePrice("Soil_Sand").orElseThrow());
+        assertEquals(1, result.warnings().size());
+    }
+
+    @Test
+    void skipsItemsRequiringUndefinedUnlocks() throws TradeConfigException {
+        var result = parse("""
+                { "spread": 0, "unlocks": { "Stone": { "amount": 5, "accepts": ["Rock_Stone"] } },
+                  "items": { "Rock_Stone": { "price": 10, "requires": ["Nope"] }, "Soil_Dirt": 1,
+                             "Soil_Sand": { "price": 1, "requires": [["Nope", "Stone"]] } } }
+                """);
+        assertFalse(result.config().isTradeable("Rock_Stone"));
+        assertTrue(result.config().isTradeable("Soil_Dirt"));
+        assertTrue(result.warnings().get(0).contains("Nope"));
+        // An "any of" choice keeps its defined alternatives.
+        assertEquals(List.of(Set.of("Stone")), result.config().requirementsOf("Soil_Sand"));
+    }
+
+    @Test
+    void skipsInvalidUnlocks() throws TradeConfigException {
+        var result = parse("""
+                { "spread": 0, "items": {}, "unlocks": {
+                    "NoAmount": { "accepts": ["Rock_Stone"] },
+                    "Zero": { "amount": 0, "accepts": ["Rock_Stone"] },
+                    "NoItems": { "amount": 5, "accepts": ["Unknown_Thing"] } } }
+                """);
+        assertTrue(result.config().unlocks().isEmpty());
+        assertEquals(4, result.warnings().size()); // 3 skipped unlocks + 1 unknown accepted item
+    }
 }

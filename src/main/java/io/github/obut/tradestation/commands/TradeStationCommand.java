@@ -27,6 +27,8 @@ public class TradeStationCommand extends AbstractCommandCollection {
         addSubCommand(new SellCommand(tradeService, viewers));
         addSubCommand(new BuyCommand(tradeService, viewers));
         addSubCommand(new SetBalanceCommand(logger, viewers));
+        addSubCommand(new UnlockCommand(false, configManager, viewers, logger));
+        addSubCommand(new UnlockCommand(true, configManager, viewers, logger));
         addSubCommand(new GeneratePrices(priceGeneration));
         addSubCommand(new CheckPrices(priceGeneration, configManager));
     }

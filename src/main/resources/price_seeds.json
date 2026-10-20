@@ -1,5 +1,5 @@
 {
-  "spread": 0.25,
+  "spread": 0,
   "excludeCategories": [
     "Furniture.Benches",
     "Furniture.Containers",
@@ -108,5 +108,30 @@
     "Wood_Stormbark_Trunk": 30,
     "Wood_Windwillow_Trunk": 20,
     "Wood_Wisteria_Wild_Trunk": 20
+  },
+  "unlocks": {
+    "defaultAmount": 500,
+    "amounts": {},
+    "groups": {
+      "Clay": [
+        "Soil_Clay",
+        "Soil_Clay_Beige",
+        "Soil_Clay_Black",
+        "Soil_Clay_Blue",
+        "Soil_Clay_Cyan",
+        "Soil_Clay_Green",
+        "Soil_Clay_Grey",
+        "Soil_Clay_GreyLight",
+        "Soil_Clay_Lime",
+        "Soil_Clay_Ocean",
+        "Soil_Clay_Orange",
+        "Soil_Clay_Pink",
+        "Soil_Clay_Purple",
+        "Soil_Clay_Red",
+        "Soil_Clay_Scarlet",
+        "Soil_Clay_White",
+        "Soil_Clay_Yellow"
+      ]
+    }
   }
 }

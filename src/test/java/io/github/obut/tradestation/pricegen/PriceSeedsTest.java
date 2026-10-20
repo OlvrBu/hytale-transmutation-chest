@@ -47,4 +47,32 @@ class PriceSeedsTest {
             assertFalse(seeds.seeds().isEmpty());
         }
     }
+
+    @Test
+    void parsesUnlockGroups() throws TradeConfigException {
+        var seeds = PriceSeeds.parse("""
+                { "spread": 0, "seeds": { "Stone": 10, "Red": 10, "Blue": 10 },
+                  "unlocks": { "defaultAmount": 500, "amounts": { "Clay": 300 },
+                               "groups": { "Clay": ["Red", "Blue"] } } }
+                """);
+        assertTrue(seeds.unlocksEnabled());
+        assertEquals("Clay", seeds.unlockIdFor("Red"));
+        assertEquals("Stone", seeds.unlockIdFor("Stone"));
+        assertEquals(List.of("Red", "Blue"), seeds.acceptedBy("Clay"));
+        assertEquals(List.of("Stone"), seeds.acceptedBy("Stone"));
+        assertEquals(300, seeds.amountFor("Clay"));
+        assertEquals(500, seeds.amountFor("Stone"));
+    }
+
+    @Test
+    void rejectsBadUnlockGroups() {
+        assertThrows(TradeConfigException.class, () -> PriceSeeds.parse("""
+                { "spread": 0, "seeds": { "A": 1 }, "unlocks": { "defaultAmount": 5, "groups": { "G": ["Missing"] } } }"""));
+        assertThrows(TradeConfigException.class, () -> PriceSeeds.parse("""
+                { "spread": 0, "seeds": { "A": 1 }, "unlocks": { "defaultAmount": 5, "groups": { "G": ["A"], "H": ["A"] } } }"""));
+        assertThrows(TradeConfigException.class, () -> PriceSeeds.parse("""
+                { "spread": 0, "seeds": { "A": 1 }, "unlocks": { "groups": { "G": ["A"] } } }"""));
+        assertThrows(TradeConfigException.class, () -> PriceSeeds.parse("""
+                { "spread": 0, "seeds": { "A": 1 }, "unlocks": { "defaultAmount": 0 } }"""));
+    }
 }

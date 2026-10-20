@@ -48,6 +48,8 @@ public final class TradeConfigParser {
         List<String> warnings = new ArrayList<>();
         BigDecimal spread = null;
         Map<String, Long> prices = null;
+        Map<String, List<Set<String>>> requirements = new LinkedHashMap<>();
+        Map<String, TradeConfig.Unlock> unlocks = null;
 
         try (JsonReader reader = new JsonReader(new StringReader(json))) {
             reader.setStrictness(Strictness.STRICT);
@@ -68,7 +70,13 @@ public final class TradeConfigParser {
                         if (prices != null) {
                             throw new TradeConfigException("Duplicate key \"items\"");
                         }
-                        prices = readItems(reader, itemIdKnown, warnings);
+                        prices = readItems(reader, itemIdKnown, warnings, requirements);
+                    }
+                    case "unlocks" -> {
+                        if (unlocks != null) {
+                            throw new TradeConfigException("Duplicate key \"unlocks\"");
+                        }
+                        unlocks = readUnlocks(reader, itemIdKnown, warnings);
                     }
                     default -> {
                         warnings.add("Unknown key \"" + key + "\" ignored");
@@ -92,6 +100,34 @@ public final class TradeConfigParser {
         if (prices == null) {
             throw new TradeConfigException("Missing \"items\"");
         }
+        if (unlocks == null) {
+            unlocks = Map.of();
+        }
+        // Undefined unlocks can never complete: drop them from "any of" choices; an item left with a
+        // requirement nothing can satisfy could never be traded, so skip it loudly.
+        for (var it = requirements.entrySet().iterator(); it.hasNext(); ) {
+            var entry = it.next();
+            List<Set<String>> cleaned = new ArrayList<>();
+            for (Set<String> anyOf : entry.getValue()) {
+                Set<String> known = new java.util.LinkedHashSet<>();
+                for (String unlock : anyOf) {
+                    if (unlocks.containsKey(unlock)) {
+                        known.add(unlock);
+                    } else {
+                        warnings.add("Item \"" + entry.getKey() + "\": requires undefined unlock \"" + unlock + "\"");
+                    }
+                }
+                cleaned.add(known);
+            }
+            if (cleaned.stream().anyMatch(Set::isEmpty)) {
+                warnings.add("Item \"" + entry.getKey() + "\": a requirement can't be met, entry skipped");
+                prices.remove(entry.getKey());
+                it.remove();
+            } else {
+                entry.setValue(cleaned);
+            }
+        }
+        requirements.keySet().retainAll(prices.keySet());
         // Make sure every buy price is representable; drop entries that would overflow.
         for (var it = prices.entrySet().iterator(); it.hasNext(); ) {
             var entry = it.next();
@@ -102,7 +138,8 @@ public final class TradeConfigParser {
                 it.remove();
             }
         }
-        return new Result(new TradeConfig(spread, prices), warnings);
+        requirements.keySet().retainAll(prices.keySet());
+        return new Result(new TradeConfig(spread, prices, unlocks, requirements), warnings);
     }
 
     private static BigDecimal readSpread(JsonReader reader) throws IOException, TradeConfigException {
@@ -117,7 +154,12 @@ public final class TradeConfigParser {
         return spread;
     }
 
-    private static Map<String, Long> readItems(JsonReader reader, Predicate<String> itemIdKnown, List<String> warnings)
+    /**
+     * Each entry is either a price ({@code "Id": 10}) or an object with requirements
+     * ({@code "Id": { "price": 10, "requires": ["Rock_Stone_Cobble"] }}).
+     */
+    private static Map<String, Long> readItems(JsonReader reader, Predicate<String> itemIdKnown, List<String> warnings,
+                                               Map<String, List<Set<String>>> requirements)
             throws IOException, TradeConfigException {
         if (reader.peek() != JsonToken.BEGIN_OBJECT) {
             throw new TradeConfigException("\"items\" must be an object mapping item IDs to prices");
@@ -136,12 +178,46 @@ public final class TradeConfigParser {
             }
             seen.add(itemId);
 
-            if (reader.peek() != JsonToken.NUMBER) {
-                warnings.add("Item \"" + itemId + "\": price must be a number, entry skipped");
+            String literal = null;
+            List<Set<String>> required = new ArrayList<>();
+            if (reader.peek() == JsonToken.BEGIN_OBJECT) {
+                reader.beginObject();
+                while (reader.hasNext()) {
+                    String field = reader.nextName();
+                    if (field.equals("price") && reader.peek() == JsonToken.NUMBER) {
+                        literal = reader.nextString();
+                    } else if (field.equals("requires") && reader.peek() == JsonToken.BEGIN_ARRAY) {
+                        // Each element: "Unlock" (needed) or ["A", "B"] (any one of them).
+                        reader.beginArray();
+                        while (reader.hasNext()) {
+                            Set<String> anyOf = new java.util.LinkedHashSet<>();
+                            if (reader.peek() == JsonToken.BEGIN_ARRAY) {
+                                reader.beginArray();
+                                while (reader.hasNext()) {
+                                    anyOf.add(reader.nextString());
+                                }
+                                reader.endArray();
+                            } else {
+                                anyOf.add(reader.nextString());
+                            }
+                            required.add(anyOf);
+                        }
+                        reader.endArray();
+                    } else {
+                        warnings.add("Item \"" + itemId + "\": unknown or invalid field \"" + field + "\" ignored");
+                        reader.skipValue();
+                    }
+                }
+                reader.endObject();
+            } else if (reader.peek() == JsonToken.NUMBER) {
+                literal = reader.nextString();
+            } else {
                 reader.skipValue();
+            }
+            if (literal == null) {
+                warnings.add("Item \"" + itemId + "\": price must be a number, entry skipped");
                 continue;
             }
-            String literal = reader.nextString();
             Long price = parsePrice(literal);
             if (price == null) {
                 warnings.add("Item \"" + itemId + "\": price must be a positive integer, got " + literal + ", entry skipped");
@@ -152,9 +228,66 @@ public final class TradeConfigParser {
                 continue;
             }
             prices.put(itemId, price);
+            if (!required.isEmpty()) {
+                requirements.put(itemId, required);
+            }
         }
         reader.endObject();
+        // A duplicated item was removed from prices; drop its requirements too.
+        requirements.keySet().retainAll(prices.keySet());
         return prices;
+    }
+
+    /** {@code "unlocks": { "Clay": { "amount": 500, "accepts": ["Soil_Clay_Red", ...] } }} */
+    private static Map<String, TradeConfig.Unlock> readUnlocks(JsonReader reader, Predicate<String> itemIdKnown,
+                                                               List<String> warnings)
+            throws IOException, TradeConfigException {
+        if (reader.peek() != JsonToken.BEGIN_OBJECT) {
+            throw new TradeConfigException("\"unlocks\" must be an object");
+        }
+        Map<String, TradeConfig.Unlock> unlocks = new LinkedHashMap<>();
+        reader.beginObject();
+        while (reader.hasNext()) {
+            String id = reader.nextName();
+            Long amount = null;
+            List<String> accepts = new ArrayList<>();
+            if (reader.peek() != JsonToken.BEGIN_OBJECT) {
+                warnings.add("Unlock \"" + id + "\": must be an object, skipped");
+                reader.skipValue();
+                continue;
+            }
+            reader.beginObject();
+            while (reader.hasNext()) {
+                String field = reader.nextName();
+                if (field.equals("amount") && reader.peek() == JsonToken.NUMBER) {
+                    amount = parsePrice(reader.nextString());
+                } else if (field.equals("accepts") && reader.peek() == JsonToken.BEGIN_ARRAY) {
+                    reader.beginArray();
+                    while (reader.hasNext()) {
+                        String item = reader.nextString();
+                        if (itemIdKnown.test(item)) {
+                            accepts.add(item);
+                        } else {
+                            warnings.add("Unlock \"" + id + "\": unknown item \"" + item + "\" ignored");
+                        }
+                    }
+                    reader.endArray();
+                } else {
+                    warnings.add("Unlock \"" + id + "\": unknown or invalid field \"" + field + "\" ignored");
+                    reader.skipValue();
+                }
+            }
+            reader.endObject();
+            if (amount == null) {
+                warnings.add("Unlock \"" + id + "\": amount must be a positive integer, skipped");
+            } else if (accepts.isEmpty()) {
+                warnings.add("Unlock \"" + id + "\": accepts no known items, skipped");
+            } else if (unlocks.put(id, new TradeConfig.Unlock(amount, accepts)) != null) {
+                warnings.add("Unlock \"" + id + "\" listed more than once, last one used");
+            }
+        }
+        reader.endObject();
+        return unlocks;
     }
 
     /** Returns the price if {@code literal} is a positive integer that fits in a long (2.0 counts), else null. */

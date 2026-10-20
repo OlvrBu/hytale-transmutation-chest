@@ -3,10 +3,7 @@ package io.github.obut.tradestation.station;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
-import org.bson.BsonDocument;
-import org.bson.BsonValue;
 
-import javax.annotation.Nullable;
 
 /**
  * The Trade_Station item and how it carries a balance.
@@ -24,30 +21,17 @@ public final class StationItem {
     private StationItem() {
     }
 
-    /** A station item. With balance 0 it is a plain item, identical to a freshly obtained one. */
-    public static ItemStack create(long balance) {
+    /**
+     * A station item carrying the station's data (balance and unlock progress). A fresh station
+     * (nothing to keep) becomes a plain item, identical to a newly crafted one.
+     */
+    public static ItemStack create(StationComponent station) {
         ItemStack item = new ItemStack(ITEM_ID, 1);
-        if (balance == 0) {
+        if (station.isFresh()) {
             return item;
         }
         Holder<ChunkStore> holder = ChunkStore.REGISTRY.newHolder();
-        holder.putComponent(StationComponent.getComponentType(), new StationComponent(balance));
+        holder.putComponent(StationComponent.getComponentType(), (StationComponent) station.clone());
         return item.withMetadata(ItemStack.Metadata.BLOCK_HOLDER, ChunkStore.REGISTRY.serialize(holder));
-    }
-
-    /** Balance carried by a station item: 0 if it carries none, null if it isn't a station item. */
-    @Nullable
-    public static Long balanceOf(@Nullable ItemStack item) {
-        if (item == null || !ITEM_ID.equals(item.getItemId())) {
-            return null;
-        }
-        BsonDocument metadata = item.getMetadata();
-        BsonValue saved = metadata == null ? null : metadata.get(ItemStack.Metadata.BLOCK_HOLDER);
-        if (saved == null || !saved.isDocument()) {
-            return 0L;
-        }
-        StationComponent station = ChunkStore.REGISTRY.deserialize(saved.asDocument())
-                .getComponent(StationComponent.getComponentType());
-        return station == null ? 0L : station.getBalance();
     }
 }

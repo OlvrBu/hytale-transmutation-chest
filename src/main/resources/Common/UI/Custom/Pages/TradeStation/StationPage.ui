@@ -1,11 +1,12 @@
 $C = "../../Common.ui";
 
-// Trade Station page. The server fills #Balance, #Status and appends one StationRow.ui per item into #Rows.
+// Trade Station page. Tabs switch between selling, buying and unlocking; the server fills the header and
+// appends one StationSellRow.ui / StationBuyRow.ui per item of the current page into #Rows.
 
 $C.@PageOverlay {}
 
 $C.@DecoratedContainer {
-  Anchor: (Width: 920, Height: 580);
+  Anchor: (Width: 920, Height: 620);
 
   #Title {
     Label #StationTitle {
@@ -22,10 +23,42 @@ $C.@DecoratedContainer {
     LayoutMode: Top;
     Padding: (Horizontal: 10);
 
-    Group #Header {
-      Anchor: (Height: 44);
+    // Tabs (built-in TabNavigation: icon tabs; the server is told via SelectedTabChanged).
+    Group #TabBar {
+      Anchor: (Height: 70);
       LayoutMode: Left;
       Padding: (Horizontal: 8);
+
+      TabNavigation #Tabs {
+        Anchor: (Width: 270, Height: 66);
+        Style: $C.@TopTabsStyle;
+        SelectedTab: "Sell";
+
+        TabButton {
+          Icon: "SellIcon.png";
+          TooltipText: %tradestation.ui.tabSell;
+          Id: "Sell";
+        }
+
+        TabButton {
+          Icon: "BuyIcon.png";
+          TooltipText: %tradestation.ui.tabBuy;
+          Id: "Buy";
+        }
+
+        TabButton {
+          Icon: "UnlockIcon.png";
+          TooltipText: %tradestation.ui.tabUnlock;
+          Id: "Unlock";
+        }
+      }
+
+      Label #TabTitle {
+        FlexWeight: 1;
+        Padding: (Left: 12);
+        Style: (FontSize: 20, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
+        Text: "";
+      }
 
       Label #Balance {
         FlexWeight: 1;
@@ -33,13 +66,45 @@ $C.@DecoratedContainer {
           FontSize: 20,
           TextColor: #E8A93B,
           RenderBold: true,
+          HorizontalAlignment: End,
           VerticalAlignment: Center,
         );
         Text: "";
       }
+    }
+
+    // Search, Unlock-tab filters, and the result of the last trade.
+    Group #Filters {
+      Anchor: (Height: 44, Top: 4, Bottom: 6);
+      LayoutMode: Left;
+      Padding: (Horizontal: 8);
+
+      $C.@TextField #SearchInput {
+        @Anchor = (Width: 320);
+        PlaceholderText: %tradestation.ui.searchPlaceholder;
+      }
+
+      // Unlock tab only (the server toggles visibility).
+      Group #UnlockFilters {
+        Anchor: (Left: 16, Width: 420);
+        LayoutMode: Left;
+        Visible: false;
+
+        $C.@CheckBoxWithLabel #HideUnlocked {
+          @Text = %tradestation.ui.hideUnlocked;
+          @Checked = true;
+          Anchor: (Width: 190);
+        }
+
+        $C.@CheckBoxWithLabel #CanDonate {
+          @Text = %tradestation.ui.canDonate;
+          @Checked = true;
+          Anchor: (Width: 230);
+        }
+      }
 
       Label #Status {
-        FlexWeight: 2;
+        FlexWeight: 1;
         Style: (
           FontSize: 14,
           TextColor: #96a9be,
@@ -50,33 +115,12 @@ $C.@DecoratedContainer {
       }
     }
 
-    // Filter bar: search text + "only items I have". The server hides rows that don't match.
-    Group #Filters {
-      Anchor: (Height: 44, Bottom: 6);
-      LayoutMode: Left;
-      Padding: (Horizontal: 8);
-
-      $C.@TextField #SearchInput {
-        @Anchor = (Width: 320);
-        PlaceholderText: %tradestation.ui.searchPlaceholder;
-      }
-
-      Group {
-        Anchor: (Width: 24);
-      }
-
-      $C.@CheckBoxWithLabel #OwnedOnly {
-        @Text = %tradestation.ui.ownedOnly;
-        Anchor: (Width: 260);
-      }
-    }
-
     $C.@ContentSeparator {}
 
     Label #NoMatches {
       Anchor: (Height: 40);
       Style: (FontSize: 15, TextColor: #878e9c, HorizontalAlignment: Center, VerticalAlignment: Center);
-      Text: %tradestation.ui.noMatches;
+      Text: "";
       Visible: false;
     }
 

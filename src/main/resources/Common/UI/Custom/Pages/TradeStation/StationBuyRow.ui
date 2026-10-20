@@ -1,0 +1,52 @@
+$C = "../../Common.ui";
+
+// One item on the Buy tab: icon, name, how many you have, price, two buttons.
+
+Group {
+  Anchor: (Height: 56, Bottom: 4);
+  LayoutMode: Left;
+  Background: #1c2835;
+  Padding: (Horizontal: 6, Vertical: 4);
+
+  Group #IconBox {
+    Anchor: (Width: 48, Height: 48);
+    Background: #1a2530;
+    Padding: 2;
+
+    ItemSlot #Icon {
+      Anchor: (Full: 0);
+      ShowQualityBackground: true;
+    }
+  }
+
+  Group #Info {
+    FlexWeight: 1;
+    LayoutMode: Top;
+    Padding: (Left: 10);
+
+    Label #Name {
+      Anchor: (Height: 26);
+      Style: (FontSize: 16, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
+    }
+
+    Label #Have {
+      Anchor: (Height: 20);
+      Style: (FontSize: 13, TextColor: #96a9be, VerticalAlignment: Center);
+    }
+  }
+
+  Label #Price {
+    Anchor: (Width: 140);
+    Style: (FontSize: 15, TextColor: #c9a050, HorizontalAlignment: End, VerticalAlignment: Center);
+  }
+
+  $C.@SmallSecondaryTextButton #Buy1 {
+    Anchor: (Left: 12, Width: 100, Height: $C.@SmallButtonHeight);
+    Text: %tradestation.ui.buy1;
+  }
+
+  $C.@SmallSecondaryTextButton #BuyStack {
+    Anchor: (Left: 4, Width: 120, Height: $C.@SmallButtonHeight);
+    Text: "";
+  }
+}
