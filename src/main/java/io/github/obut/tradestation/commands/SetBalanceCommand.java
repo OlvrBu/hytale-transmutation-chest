@@ -21,19 +21,19 @@ import javax.annotation.Nonnull;
 import java.util.logging.Level;
 
 /**
- * Dev-only {@code /stationbalance <amount>}: sets the balance of the station you're looking at.
+ * Dev-only {@code /tradestation setbalance <amount>}: sets the balance of the station you're looking at.
  * For testing persistence before the trading UI exists. Operators only (automatic permission node).
  */
-public class StationBalanceCommand extends AbstractPlayerCommand {
+public class SetBalanceCommand extends AbstractPlayerCommand {
 
     private static final double MAX_REACH = 8.0;
 
     private final HytaleLogger logger;
     private final RequiredArg<Integer> amountArg =
-            withRequiredArg("amount", Texts.key("commands.stationbalance.amount.desc"), ArgTypes.INTEGER);
+            withRequiredArg("amount", Texts.key("commands.tradestation.setbalance.amount.desc"), ArgTypes.INTEGER);
 
-    public StationBalanceCommand(HytaleLogger logger) {
-        super("stationbalance", Texts.key("commands.stationbalance.desc"));
+    public SetBalanceCommand(HytaleLogger logger) {
+        super("setbalance", Texts.key("commands.tradestation.setbalance.desc"));
         this.logger = logger;
     }
 
@@ -42,7 +42,7 @@ public class StationBalanceCommand extends AbstractPlayerCommand {
                            @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef, @Nonnull World world) {
         int amount = amountArg.get(context);
         if (amount < 0) {
-            context.sendMessage(Texts.of("commands.stationbalance.negative"));
+            context.sendMessage(Texts.of("commands.tradestation.setbalance.negative"));
             return;
         }
         Vector3i target = TargetUtil.getTargetBlock(ref, MAX_REACH, store);
@@ -51,7 +51,7 @@ public class StationBalanceCommand extends AbstractPlayerCommand {
         }
         Ref<ChunkStore> stationRef = target == null ? null : StationAccess.findStation(world, target.x, target.y, target.z);
         if (stationRef == null) {
-            context.sendMessage(Texts.of("commands.stationbalance.noTarget").param("reach", (int) MAX_REACH));
+            context.sendMessage(Texts.of("commands.tradestation.setbalance.noTarget").param("reach", (int) MAX_REACH));
             return;
         }
         StationComponent station = stationRef.getStore().getComponent(stationRef, StationComponent.getComponentType());
@@ -59,8 +59,8 @@ public class StationBalanceCommand extends AbstractPlayerCommand {
         station.setBalance(amount);
         StationAccess.markNeedsSaving(stationRef);
 
-        logger.at(Level.INFO).log("[stationbalance] %s set station at (%d, %d, %d) from %d to %d",
+        logger.at(Level.INFO).log("[setbalance] %s set station at (%d, %d, %d) from %d to %d",
                 playerRef.getUsername(), target.x, target.y, target.z, old, amount);
-        context.sendMessage(Texts.of("commands.stationbalance.changed").param("old", old).param("new", amount));
+        context.sendMessage(Texts.of("commands.tradestation.setbalance.changed").param("old", old).param("new", amount));
     }
 }

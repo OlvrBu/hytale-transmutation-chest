@@ -3,6 +3,7 @@ package io.github.obut.tradestation.commands;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractCommandCollection;
 import com.hypixel.hytale.server.core.command.system.basecommands.CommandBase;
+import com.hypixel.hytale.logger.HytaleLogger;
 import io.github.obut.tradestation.config.TradeConfigManager;
 import io.github.obut.tradestation.text.Texts;
 import io.github.obut.tradestation.ui.StationViewers;
@@ -16,9 +17,11 @@ import javax.annotation.Nonnull;
  */
 public class TradeStationCommand extends AbstractCommandCollection {
 
-    public TradeStationCommand(TradeConfigManager configManager, StationViewers viewers) {
+    public TradeStationCommand(TradeConfigManager configManager, StationViewers viewers, HytaleLogger logger) {
         super("tradestation", Texts.key("commands.tradestation.desc"));
         addSubCommand(new Reload(configManager, viewers));
+        addSubCommand(new SellCommand(configManager, logger));
+        addSubCommand(new SetBalanceCommand(logger));
     }
 
     /** {@code /tradestation reload}: re-reads tradeables.json; a broken file keeps the old config. */
