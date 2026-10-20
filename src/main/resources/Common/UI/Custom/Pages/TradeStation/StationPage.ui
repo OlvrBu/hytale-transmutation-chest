@@ -1,160 +1,186 @@
 $C = "../../Common.ui";
+$Sounds = "../../Sounds.ui";
 
-// Trade Station page. Tabs switch between selling, buying and unlocking; the server fills the header and
-// appends one StationSellRow.ui / StationBuyRow.ui per item of the current page into #Rows.
+// Trade Station page, laid out like the vanilla workbench: icon tabs above the window, a breadcrumb
+// title row ("Trade Station > Sell") with toggles and an expanding search, then the list.
+// The server fills the texts and appends one StationSellRow/BuyRow/UnlockRow.ui per item into #Rows.
 
 $C.@PageOverlay {}
 
-$C.@DecoratedContainer {
-  Anchor: (Width: 920, Height: 620);
+Group #Window {
+  Anchor: (Width: 920, Height: 690);
+  LayoutMode: Top;
 
-  #Title {
-    Label #StationTitle {
-      Style: (
-        ...$C.@TitleStyle,
-        HorizontalAlignment: Center,
-      );
-      Padding: (Horizontal: 19);
-      Text: %tradestation.ui.title;
+  // Tabs on top of the window (built-in TabNavigation; the server is told via SelectedTabChanged).
+  TabNavigation #Tabs {
+    Anchor: (Height: 66, Left: 2, Right: 0);
+    Style: $C.@TopTabsStyle;
+    SelectedTab: "Sell";
+
+    TabButton {
+      Icon: "SellIcon.png";
+      TooltipText: %tradestation.ui.tabSell;
+      Id: "Sell";
+    }
+
+    TabButton {
+      Icon: "BuyIcon.png";
+      TooltipText: %tradestation.ui.tabBuy;
+      Id: "Buy";
+    }
+
+    TabButton {
+      Icon: "UnlockIcon.png";
+      TooltipText: %tradestation.ui.tabUnlock;
+      Id: "Unlock";
     }
   }
 
-  #Content {
-    LayoutMode: Top;
-    Padding: (Horizontal: 10);
+  $C.@Container {
+    FlexWeight: 1;
 
-    // Tabs (built-in TabNavigation: icon tabs; the server is told via SelectedTabChanged).
-    Group #TabBar {
-      Anchor: (Height: 70);
-      LayoutMode: Left;
-      Padding: (Horizontal: 8);
-
-      TabNavigation #Tabs {
-        Anchor: (Width: 270, Height: 66);
-        Style: $C.@TopTabsStyle;
-        SelectedTab: "Sell";
-
-        TabButton {
-          Icon: "SellIcon.png";
-          TooltipText: %tradestation.ui.tabSell;
-          Id: "Sell";
-        }
-
-        TabButton {
-          Icon: "BuyIcon.png";
-          TooltipText: %tradestation.ui.tabBuy;
-          Id: "Buy";
-        }
-
-        TabButton {
-          Icon: "UnlockIcon.png";
-          TooltipText: %tradestation.ui.tabUnlock;
-          Id: "Unlock";
-        }
-      }
-
-      Label #TabTitle {
-        FlexWeight: 1;
-        Padding: (Left: 12);
-        Style: (FontSize: 20, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
-        Text: "";
-      }
-
-      Label #Balance {
-        FlexWeight: 1;
-        Style: (
-          FontSize: 20,
-          TextColor: #E8A93B,
-          RenderBold: true,
-          HorizontalAlignment: End,
-          VerticalAlignment: Center,
-        );
-        Text: "";
-      }
-    }
-
-    // Search, Unlock-tab filters, and the result of the last trade.
-    Group #Filters {
-      Anchor: (Height: 44, Top: 4, Bottom: 6);
-      LayoutMode: Left;
-      Padding: (Horizontal: 8);
-
-      $C.@TextField #SearchInput {
-        @Anchor = (Width: 320);
-        PlaceholderText: %tradestation.ui.searchPlaceholder;
-      }
-
-      // Unlock tab only (the server toggles visibility).
-      Group #UnlockFilters {
-        Anchor: (Left: 16, Width: 420);
+    #Title {
+      Group {
         LayoutMode: Left;
+        Anchor: (Full: 0);
+        Padding: (Left: 19, Right: 6);
+
+        // Breadcrumb: "TRADE STATION > SELL"
+        Label #Crumb {
+          Style: (...$C.@TitleStyle, TextColor: $C.@ColorGrayCaption);
+          Text: %tradestation.ui.title;
+        }
+
+        Label #CrumbSeparator {
+          Padding: (Horizontal: 8);
+          Style: (...$C.@TitleStyle, TextColor: $C.@ColorGrayCaption);
+          Text: ">";
+        }
+
+        Label #TabTitle {
+          Style: $C.@TitleStyle;
+          Text: "";
+        }
+
+        Group {
+          FlexWeight: 1;
+        }
+
+        // Magnifying glass that expands into a search field (contains #SearchInput).
+        // Each tab keeps its own search text (the server swaps it in on tab change).
+        $C.@HeaderSearch #Search {}
+
+        // Unlock tab only (the server toggles visibility): icon checkboxes, at the far right.
+        Group #UnlockToggles {
+          LayoutMode: Left;
+          Anchor: (Width: 76, Height: 30);
+          Visible: false;
+
+          CheckBox #ShowUnlocked {
+            Anchor: (Width: 30, Height: 30, Right: 8);
+            TooltipText: %tradestation.ui.showUnlocked;
+            Value: false;
+            Style: (
+              Unchecked: (
+                DefaultBackground: "EyeClosed.png",
+                HoveredBackground: "EyeClosed.png",
+                PressedBackground: "EyeClosed.png",
+                ChangedSound: (SoundPath: $Sounds.@Untick, Volume: 6)
+              ),
+              Checked: (
+                DefaultBackground: "EyeOpen.png",
+                HoveredBackground: "EyeOpen.png",
+                PressedBackground: "EyeOpen.png",
+                ChangedSound: (SoundPath: $Sounds.@Tick, Volume: 6)
+              )
+            );
+          }
+
+          CheckBox #CanDonate {
+            Anchor: (Width: 30, Height: 30, Right: 8);
+            TooltipText: %tradestation.ui.canDonate;
+            Value: true;
+            Style: (
+              Unchecked: (
+                DefaultBackground: "CrateOff.png",
+                HoveredBackground: "CrateOff.png",
+                PressedBackground: "CrateOff.png",
+                ChangedSound: (SoundPath: $Sounds.@Untick, Volume: 6)
+              ),
+              Checked: (
+                DefaultBackground: "CrateOn.png",
+                HoveredBackground: "CrateOn.png",
+                PressedBackground: "CrateOn.png",
+                ChangedSound: (SoundPath: $Sounds.@Tick, Volume: 6)
+              )
+            );
+          }
+        }
+
+      }
+    }
+
+    #Content {
+      LayoutMode: Top;
+
+      // Balance and the result of the last trade.
+      Group #InfoBar {
+        Anchor: (Height: 36, Bottom: 6);
+        LayoutMode: Left;
+        Padding: (Horizontal: 8);
+
+        Label #Balance {
+          FlexWeight: 1;
+          Style: (FontSize: 20, TextColor: #E8A93B, RenderBold: true, VerticalAlignment: Center);
+          Text: "";
+        }
+
+        Label #Status {
+          FlexWeight: 2;
+          Style: (FontSize: 14, TextColor: #96a9be, HorizontalAlignment: End, VerticalAlignment: Center);
+          Text: "";
+        }
+      }
+
+      $C.@ContentSeparator {}
+
+      Label #NoMatches {
+        Anchor: (Height: 40);
+        Style: (FontSize: 15, TextColor: #878e9c, HorizontalAlignment: Center, VerticalAlignment: Center);
+        Text: "";
         Visible: false;
-
-        $C.@CheckBoxWithLabel #HideUnlocked {
-          @Text = %tradestation.ui.hideUnlocked;
-          @Checked = true;
-          Anchor: (Width: 190);
-        }
-
-        $C.@CheckBoxWithLabel #CanDonate {
-          @Text = %tradestation.ui.canDonate;
-          @Checked = true;
-          Anchor: (Width: 230);
-        }
       }
 
-      Label #Status {
-        FlexWeight: 1;
-        Style: (
-          FontSize: 14,
-          TextColor: #96a9be,
-          HorizontalAlignment: End,
-          VerticalAlignment: Center,
-        );
-        Text: "";
-      }
-    }
-
-    $C.@ContentSeparator {}
-
-    Label #NoMatches {
-      Anchor: (Height: 40);
-      Style: (FontSize: 15, TextColor: #878e9c, HorizontalAlignment: Center, VerticalAlignment: Center);
-      Text: "";
-      Visible: false;
-    }
-
-    Group #RowsContainer {
-      FlexWeight: 1;
-      LayoutMode: TopScrolling;
-      ScrollbarStyle: $C.@DefaultScrollbarStyle;
-      Padding: (Top: 8, Right: 8);
-
+      // Rows are appended directly into the scrolling group, so the server can scroll it back to the
+      // top with ScrollChildIndexIntoView = 0.
       Group #Rows {
-        LayoutMode: Top;
-      }
-    }
-
-    // Pager: the server sends one page of rows at a time.
-    Group #Pager {
-      Anchor: (Height: 44, Top: 6);
-      LayoutMode: Left;
-      Padding: (Horizontal: 8);
-
-      $C.@SmallSecondaryTextButton #PrevPage {
-        Anchor: (Width: 130, Height: $C.@SmallButtonHeight);
-        Text: %tradestation.ui.prevPage;
-      }
-
-      Label #PageLabel {
         FlexWeight: 1;
-        Style: (FontSize: 14, TextColor: #96a9be, HorizontalAlignment: Center, VerticalAlignment: Center);
-        Text: "";
+        LayoutMode: TopScrolling;
+        ScrollbarStyle: $C.@DefaultScrollbarStyle;
+        Padding: (Top: 8, Right: 8);
       }
 
-      $C.@SmallSecondaryTextButton #NextPage {
-        Anchor: (Width: 130, Height: $C.@SmallButtonHeight);
-        Text: %tradestation.ui.nextPage;
+      // Pager: the server sends one page of rows at a time.
+      Group #Pager {
+        Anchor: (Height: 44, Top: 6);
+        LayoutMode: Left;
+        Padding: (Horizontal: 8);
+
+        $C.@SmallSecondaryTextButton #PrevPage {
+          Anchor: (Width: 130, Height: $C.@SmallButtonHeight);
+          Text: %tradestation.ui.prevPage;
+        }
+
+        Label #PageLabel {
+          FlexWeight: 1;
+          Style: (FontSize: 14, TextColor: #96a9be, HorizontalAlignment: Center, VerticalAlignment: Center);
+          Text: "";
+        }
+
+        $C.@SmallSecondaryTextButton #NextPage {
+          Anchor: (Width: 130, Height: $C.@SmallButtonHeight);
+          Text: %tradestation.ui.nextPage;
+        }
       }
     }
   }

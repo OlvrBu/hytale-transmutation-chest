@@ -206,6 +206,14 @@ public final class PriceGenerationService {
         return new CheckSummary(loops, issues.size() - loops, reportPath);
     }
 
+    /** Loops in {@code config} that involve the item (as an input or output), e.g. after a manual edit. */
+    public List<LoopChecker.Issue> loopsInvolving(TradeConfig config, String itemId) {
+        return LoopChecker.check(config, AssetConversions.build().conversions()).stream()
+                .filter(issue -> issue.conversion().outputs().containsKey(itemId)
+                        || issue.conversion().inputs().stream().anyMatch(in -> in.unitsPerItem().containsKey(itemId)))
+                .toList();
+    }
+
     private String readSeeds() throws IOException {
         Path file = dataDirectory.resolve(SEEDS_FILE);
         if (!Files.exists(file)) {

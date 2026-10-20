@@ -31,6 +31,7 @@ public class TradeStationCommand extends AbstractCommandCollection {
         addSubCommand(new UnlockCommand(true, configManager, viewers, logger));
         addSubCommand(new GeneratePrices(priceGeneration));
         addSubCommand(new CheckPrices(priceGeneration, configManager));
+        addSubCommand(new ItemCommand(configManager, priceGeneration, viewers));
     }
 
     /** {@code /tradestation reload}: re-reads tradeables.json; a broken file keeps the old config. */

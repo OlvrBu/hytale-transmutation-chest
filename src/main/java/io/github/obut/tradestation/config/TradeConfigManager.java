@@ -71,6 +71,17 @@ public final class TradeConfigManager {
         }
     }
 
+    /**
+     * Writes a changed config to tradeables.json (via a temporary file, so a crash can't leave half a
+     * file) and reloads it, which validates it exactly like a hand-edited file.
+     */
+    public synchronized ReloadResult save(TradeConfig config) throws IOException {
+        Path temp = file.resolveSibling(FILE_NAME + ".tmp");
+        Files.writeString(temp, TradeConfigWriter.write(config), StandardCharsets.UTF_8);
+        Files.move(temp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+        return reload();
+    }
+
     private void copyDefaultIfMissing() throws IOException {
         if (Files.exists(file)) {
             return;

@@ -72,13 +72,24 @@ purchase, nothing is bought and the balance isn't touched.
 
 All commands are under `/tradestation` and are **operator-only** by default. Each has an automatic
 permission node such as `obut.tradestation.command.tradestation.reload`. `reload`,
-`generateprices` and `checkprices` also work from the server console.
+`generateprices`, `checkprices` and the `item` commands also work from the server console.
+
+The `item` commands do the following:
+- They write `tradeables.json`, then reload it and refresh open station screens.
+- They warn right away if a hand-set price creates a craft-and-sell loop.
+- Note: running `generateprices` again and copying its output over `tradeables.json` replaces such
+  edits.
 
 | Command | What it does |
 |---|---|
 | `/tradestation reload` | Reloads `tradeables.json`. A broken file keeps the previous price list and reports the error. |
 | `/tradestation generateprices` | Derives a price list from `price_seeds.json` and the server's recipes. Doesn't activate it. |
 | `/tradestation checkprices` | Checks the active price list for craft-and-sell loops. |
+| `/tradestation item info <item>` | Shows an item's price and required unlocks. |
+| `/tradestation item add <item> <price> [--requires=…]` | Makes an item tradeable. |
+| `/tradestation item remove <item>` | Makes an item no longer tradeable. |
+| `/tradestation item price <item> <price>` | Changes an item's price. |
+| `/tradestation item requires <item> <spec>` | Changes an item's required unlocks, e.g. `Rock_Stone_Cobble+Wood_Oak_Trunk\|Wood_Ash_Trunk` (`+` = and, `\|` = any one of, `none` = no unlock). |
 | `/tradestation sell` | Sells the held item type (the held stack's amount) to the station you're looking at. |
 | `/tradestation buy <item> [--quantity=N]` | Buys from the station you're looking at. |
 | `/tradestation setbalance <amount>` | Sets the balance of the station you're looking at (for testing). |

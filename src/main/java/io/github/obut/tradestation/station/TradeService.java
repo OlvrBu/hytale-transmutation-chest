@@ -43,9 +43,6 @@ public final class TradeService {
         }
     }
 
-    /** Pass as quantity to sell everything of that item the player has. */
-    public static final int ALL = Integer.MAX_VALUE;
-
     /** How far (in blocks, from the station's centre) a player may be to trade. */
     private static final double MAX_DISTANCE = 8.0;
 

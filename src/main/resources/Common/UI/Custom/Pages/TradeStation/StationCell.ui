@@ -1,0 +1,37 @@
+$C = "../../Common.ui";
+
+// One item on the Sell/Buy tabs: a square button showing the item (hover for its name), how many you
+// have (top left) and its price (bottom right). Click = 1, Shift+Click or right-click = one stack.
+
+Group {
+  Anchor: (Width: 84, Height: 84);
+  Padding: (Full: 4);
+
+  ItemSlotButton #Cell {
+    Anchor: (Full: 0);
+    LayoutMode: Full;
+    Padding: 2;
+    Style: (
+      Default: (Background: #252f3a),
+      Hovered: (Background: #c9a050),
+      Pressed: (Background: #a08040),
+      Disabled: (Background: #1a1e24),
+      Sounds: $C.@ButtonSounds,
+    );
+
+    ItemSlot #Icon {
+      Anchor: (Full: 0);
+      ShowQualityBackground: true;
+    }
+
+    Label #Count {
+      Anchor: (Left: 5, Top: 3);
+      Style: (FontSize: 12, TextColor: #c0c8d0, RenderBold: true);
+    }
+
+    Label #Price {
+      Anchor: (Right: 5, Bottom: 3);
+      Style: (FontSize: 15, TextColor: #E8A93B, RenderBold: true, HorizontalAlignment: End, VerticalAlignment: End);
+    }
+  }
+}

@@ -1,0 +1,4 @@
+// Container for the item squares on the Sell/Buy tabs: fills left to right, wraps to the next row.
+Group #Grid {
+  LayoutMode: LeftCenterWrap;
+}

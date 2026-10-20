@@ -43,7 +43,9 @@ public record TradeConfig(BigDecimal spread, Map<String, Long> basePrices, Map<S
         basePrices = Collections.unmodifiableMap(new LinkedHashMap<>(basePrices));
         unlocks = Collections.unmodifiableMap(new LinkedHashMap<>(unlocks));
         LinkedHashMap<String, List<Set<String>>> copy = new LinkedHashMap<>();
-        requirements.forEach((item, needed) -> copy.put(item, needed.stream().map(Set::copyOf).toList()));
+        // Keep each "any of" set's order (Set.copyOf wouldn't), so writing the file back doesn't reshuffle it.
+        requirements.forEach((item, needed) -> copy.put(item, needed.stream()
+                .map(anyOf -> Collections.unmodifiableSet(new java.util.LinkedHashSet<>(anyOf))).toList()));
         requirements = Collections.unmodifiableMap(copy);
     }
 
@@ -75,5 +77,30 @@ public record TradeConfig(BigDecimal spread, Map<String, Long> basePrices, Map<S
             }
         }
         return false;
+    }
+
+    /** A copy with the item added or changed (keeps its position if it was already listed). */
+    public TradeConfig withItem(String itemId, long price, List<Set<String>> needed) {
+        if (price <= 0) {
+            throw new IllegalArgumentException("price must be positive");
+        }
+        LinkedHashMap<String, Long> prices = new LinkedHashMap<>(basePrices);
+        prices.put(itemId, price);
+        LinkedHashMap<String, List<Set<String>>> reqs = new LinkedHashMap<>(requirements);
+        if (needed.isEmpty()) {
+            reqs.remove(itemId);
+        } else {
+            reqs.put(itemId, needed);
+        }
+        return new TradeConfig(spread, prices, unlocks, reqs);
+    }
+
+    /** A copy without the item. */
+    public TradeConfig withoutItem(String itemId) {
+        LinkedHashMap<String, Long> prices = new LinkedHashMap<>(basePrices);
+        prices.remove(itemId);
+        LinkedHashMap<String, List<Set<String>>> reqs = new LinkedHashMap<>(requirements);
+        reqs.remove(itemId);
+        return new TradeConfig(spread, prices, unlocks, reqs);
     }
 }
