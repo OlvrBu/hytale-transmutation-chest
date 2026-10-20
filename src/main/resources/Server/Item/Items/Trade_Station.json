@@ -21,6 +21,11 @@
     ],
     "HitboxType": "Bench_Architect",
     "VariantRotation": "NESW",
+    "BlockEntity": {
+      "Components": {
+        "TradeStation_Station": {}
+      }
+    },
     "Interactions": {
       "Use": {
         "Interactions": [
@@ -32,7 +37,8 @@
     },
     "Gathering": {
       "Breaking": {
-        "GatherType": "Benches"
+        "GatherType": "Benches",
+        "Quantity": 0
       }
     },
     "BlockParticleSetId": "Stone",

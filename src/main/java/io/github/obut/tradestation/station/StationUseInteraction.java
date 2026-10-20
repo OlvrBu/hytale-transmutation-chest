@@ -49,10 +49,18 @@ public class StationUseInteraction extends SimpleBlockInteraction {
         if (player == null) {
             return; // not a player (e.g. an NPC)
         }
-        TradeStationPlugin.get().getLogger().at(Level.INFO).log("%s used the Trade Station at (%d, %d, %d) in %s",
-                player.getUsername(), targetBlock.x, targetBlock.y, targetBlock.z, world.getName());
-        player.sendMessage(Message.raw("Trade Station at " + targetBlock.x + ", " + targetBlock.y + ", " + targetBlock.z
-                + " (no menu yet)."));
+        Vector3i pos = StationAccess.resolveMainBlock(world, targetBlock.x, targetBlock.y, targetBlock.z);
+        var stationRef = StationAccess.findStation(world, pos.x, pos.y, pos.z);
+        if (stationRef == null) {
+            TradeStationPlugin.get().getLogger().at(Level.WARNING).log(
+                    "%s used a Trade Station at (%d, %d, %d) that has no station data", player.getUsername(), pos.x, pos.y, pos.z);
+            return;
+        }
+        long balance = stationRef.getStore().getComponent(stationRef, StationComponent.getComponentType()).getBalance();
+        TradeStationPlugin.get().getLogger().at(Level.INFO).log("%s used the Trade Station at (%d, %d, %d) in %s, balance %d",
+                player.getUsername(), pos.x, pos.y, pos.z, world.getName(), balance);
+        player.sendMessage(Message.raw("Trade Station at " + pos.x + ", " + pos.y + ", " + pos.z
+                + ": balance " + balance + " (no menu yet)."));
     }
 
     // Client-side prediction hook. Nothing to predict: all station logic is server-side.

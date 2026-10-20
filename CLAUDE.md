@@ -49,9 +49,10 @@ The Hytale API is young, changes between Early Access updates, and is not well r
 
 ### Data model
 - Balance is a **`long`** (integer value units). No floating-point balances anywhere.
-- Placed block: a custom block component (`Component<ChunkStore>`) holding the balance, persisted with the chunk.
-- Station item: balance stored in ItemStack metadata (BSON) under a namespaced key owned by this plugin (e.g. `TradeStation:Balance`). Prefer a typed codec over raw BSON access.
-- Break handler: component → item metadata. Place handler: item metadata → component.
+- Placed block: a custom block component (`StationComponent`, `Component<ChunkStore>`, registered as `TradeStation_Station`) holding the balance, persisted with the chunk.
+- Station item: balance stored in Hytale's built-in `BlockHolder` item metadata (a serialized holder containing just our `StationComponent`). Decided in milestone 4 instead of a plugin-owned key: the server restores `BlockHolder` onto the block when the item is placed, so no custom place handler is needed. A station with balance 0 drops a plain item without metadata.
+- Break handler: a `RefSystem` on block-entity removal (any cause: player break, commands, explosions, builder tools) drops the station item with the balance; the block's own drop is disabled (`Gathering.Breaking.Quantity: 0`). Removal where a station remains at the position (data replaced) does not drop. Creative-mode breaking also drops the item (accepted: a balance must never be silently lost).
+- Known: in creative mode, placing doesn't consume the item, so a balance-carrying item can be placed repeatedly (accepted; creative can create anything).
 
 ### Config: `tradeables.json`
 Single file serving as both whitelist and price list — an item is tradeable **iff** it has an entry.

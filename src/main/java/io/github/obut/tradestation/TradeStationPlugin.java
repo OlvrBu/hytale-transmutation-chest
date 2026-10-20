@@ -1,12 +1,17 @@
 package io.github.obut.tradestation;
 
+import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.event.events.BootEvent;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
+import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import io.github.obut.tradestation.commands.SellCommand;
+import io.github.obut.tradestation.commands.StationBalanceCommand;
 import io.github.obut.tradestation.config.TradeConfigManager;
+import io.github.obut.tradestation.station.StationComponent;
+import io.github.obut.tradestation.station.StationLifecycleSystem;
 import io.github.obut.tradestation.station.StationUseInteraction;
 
 import javax.annotation.Nonnull;
@@ -21,6 +26,7 @@ public class TradeStationPlugin extends JavaPlugin {
     private static TradeStationPlugin instance;
 
     private TradeConfigManager configManager;
+    private ComponentType<ChunkStore, StationComponent> stationComponentType;
 
     public TradeStationPlugin(@Nonnull JavaPluginInit init) {
         super(init);
@@ -32,6 +38,10 @@ public class TradeStationPlugin extends JavaPlugin {
         return instance;
     }
 
+    public ComponentType<ChunkStore, StationComponent> getStationComponentType() {
+        return stationComponentType;
+    }
+
     @Override
     protected void setup() {
         // getLogger() is already named after the plugin ("tradestation|P"), so log lines are prefixed.
@@ -40,6 +50,13 @@ public class TradeStationPlugin extends JavaPlugin {
         configManager = new TradeConfigManager(getDataDirectory(), getLogger(),
                 itemId -> Item.getAssetMap().getAsset(itemId) != null);
         getCommandRegistry().registerCommand(new SellCommand(configManager, getLogger()));
+        getCommandRegistry().registerCommand(new StationBalanceCommand(getLogger()));
+
+        // Block data: register our component under the name the block JSON and saved chunks use,
+        // and the system that turns a destroyed station into an item carrying its balance.
+        stationComponentType = getChunkStoreRegistry()
+                .registerComponent(StationComponent.class, StationComponent.ID, StationComponent.CODEC);
+        getChunkStoreRegistry().registerSystem(new StationLifecycleSystem(getLogger()));
 
         // Make "Type": "TradeStation_Use" usable in asset JSON. Must happen in setup(), before
         // the server loads the assets that refer to it (our Trade_Station block).
