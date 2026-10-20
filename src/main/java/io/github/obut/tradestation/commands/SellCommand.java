@@ -2,47 +2,46 @@ package io.github.obut.tradestation.commands;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
 import com.hypixel.hytale.server.core.inventory.InventoryComponent;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
-import com.hypixel.hytale.server.core.inventory.transaction.ItemStackSlotTransaction;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import io.github.obut.tradestation.config.TradeConfig;
-import io.github.obut.tradestation.config.TradeConfigManager;
-import io.github.obut.tradestation.pricing.Pricing;
+import io.github.obut.tradestation.station.StationAccess;
+import io.github.obut.tradestation.station.TradeService;
 import io.github.obut.tradestation.text.Texts;
+import io.github.obut.tradestation.ui.StationViewers;
+import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
-import java.util.OptionalLong;
-import java.util.logging.Level;
 
 /**
- * Dev-only {@code /tradestation sell}: sells the stack in the active hotbar slot if it is tradeable and logs its value.
- * There is no station (and so no balance) yet, so the items are simply removed.
- * <p>
- * Only operators can run it: the server gives every plugin command a permission node
- * ({@code obut.tradestation.command.tradestation.sell}) that normal players don't have.
+ * {@code /tradestation sell}: sells the stack in your hand to the Trade Station you're looking at.
+ * Same rules and checks as the station page (it uses {@link TradeService}); refuses without a station.
+ * Operators only (automatic permission node {@code obut.tradestation.command.tradestation.sell}).
  */
 public class SellCommand extends AbstractPlayerCommand {
 
-    private final TradeConfigManager configManager;
-    private final HytaleLogger logger;
+    private final TradeService tradeService;
+    private final StationViewers viewers;
 
-    public SellCommand(TradeConfigManager configManager, HytaleLogger logger) {
+    public SellCommand(TradeService tradeService, StationViewers viewers) {
         super("sell", Texts.key("commands.tradestation.sell.desc"));
-        this.configManager = configManager;
-        this.logger = logger;
+        this.tradeService = tradeService;
+        this.viewers = viewers;
     }
 
-    // AbstractPlayerCommand runs this on the player's world thread, so reading and changing
-    // the player's components here is safe.
+    // AbstractPlayerCommand runs this on the player's world thread, like all trades.
     @Override
     protected void execute(@Nonnull CommandContext context, @Nonnull Store<EntityStore> store,
                            @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef, @Nonnull World world) {
+        Vector3i station = StationAccess.targetedStation(ref, store, world);
+        if (station == null) {
+            context.sendMessage(Texts.of("commands.tradestation.noTarget").param("reach", (int) StationAccess.TARGET_REACH));
+            return;
+        }
         // getItemInHand() can also return the tool-belt item; only hotbar items can be sold.
         InventoryComponent.Tool tools = store.getComponent(ref, InventoryComponent.Tool.getComponentType());
         if (tools != null && tools.isUsingToolsItem()) {
@@ -50,42 +49,18 @@ public class SellCommand extends AbstractPlayerCommand {
             return;
         }
         InventoryComponent.Hotbar hotbar = store.getComponent(ref, InventoryComponent.Hotbar.getComponentType());
-        byte slot = hotbar == null ? InventoryComponent.INACTIVE_SLOT_INDEX : hotbar.getActiveSlot();
-        ItemStack stack = slot == InventoryComponent.INACTIVE_SLOT_INDEX ? null : hotbar.getActiveItem();
-        if (ItemStack.isEmpty(stack)) {
+        ItemStack held = hotbar == null || hotbar.getActiveSlot() == InventoryComponent.INACTIVE_SLOT_INDEX
+                ? null : hotbar.getActiveItem();
+        if (ItemStack.isEmpty(held)) {
             context.sendMessage(Texts.of("commands.tradestation.sell.nothingHeld"));
             return;
         }
 
-        String itemId = stack.getItemId();
-        TradeConfig config = configManager.current();
-        OptionalLong basePrice = config.basePrice(itemId);
-        if (basePrice.isEmpty()) {
-            context.sendMessage(Texts.of("trade.notTradeable").param("item", Texts.itemNameText(itemId, playerRef.getLanguage())));
-            return;
+        // Sells as many of this item as the held stack holds (taken from anywhere in the inventory).
+        TradeService.Result result = tradeService.sell(world, station, store, ref, held.getItemId(), held.getQuantity());
+        context.sendMessage(result.message());
+        if (result.success()) {
+            viewers.refreshAll(world, station);
         }
-
-        int quantity = stack.getQuantity();
-        long value;
-        try {
-            value = Pricing.sellValue(basePrice.getAsLong(), quantity);
-        } catch (ArithmeticException e) {
-            context.sendMessage(Texts.of("commands.tradestation.sell.tooValuable"));
-            return;
-        }
-
-        // Remove exactly the stack we priced: with allOrNothing=true the server only removes items
-        // if the slot still holds a matching stack with at least that many items, atomically.
-        ItemStackSlotTransaction removal = hotbar.getInventory()
-                .removeItemStackFromSlot(slot, stack, quantity, true, true);
-        if (!removal.succeeded()) {
-            context.sendMessage(Texts.of("commands.tradestation.sell.inventoryChanged"));
-            return;
-        }
-
-        logger.at(Level.INFO).log("[sell] %s sold %dx %s for %d (base %d)",
-                playerRef.getUsername(), quantity, itemId, value, basePrice.getAsLong());
-        context.sendMessage(Texts.of("commands.tradestation.sell.sold")
-                .param("count", quantity).param("item", Texts.itemNameText(itemId, playerRef.getLanguage())).param("value", value));
     }
 }

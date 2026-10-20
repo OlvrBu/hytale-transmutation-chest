@@ -9,7 +9,9 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockComponentSection;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.util.FillerBlockUtil;
+import com.hypixel.hytale.server.core.util.TargetUtil;
 import org.joml.Vector3i;
 
 import javax.annotation.Nullable;
@@ -43,6 +45,20 @@ public final class StationAccess {
             return null;
         }
         return block;
+    }
+
+    /** How far away a station can be targeted by looking at it (commands). */
+    public static final double TARGET_REACH = 8.0;
+
+    /** Position of the Trade Station the player is looking at, or null if they aren't looking at one. */
+    @Nullable
+    public static Vector3i targetedStation(Ref<EntityStore> player, Store<EntityStore> store, World world) {
+        Vector3i target = TargetUtil.getTargetBlock(player, TARGET_REACH, store);
+        if (target == null) {
+            return null;
+        }
+        Vector3i main = resolveMainBlock(world, target.x, target.y, target.z);
+        return findStation(world, main.x, main.y, main.z) == null ? null : main;
     }
 
     /**

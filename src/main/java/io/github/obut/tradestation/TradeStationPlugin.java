@@ -65,8 +65,8 @@ public class TradeStationPlugin extends JavaPlugin {
         configManager = new TradeConfigManager(getDataDirectory(), getLogger(),
                 itemId -> Item.getAssetMap().getAsset(itemId) != null);
         tradeService = new TradeService(configManager, getLogger());
-        // /tradestation reload | sell | setbalance (operators only)
-        getCommandRegistry().registerCommand(new TradeStationCommand(configManager, stationViewers, getLogger()));
+        // /tradestation reload | sell | buy | setbalance (operators only)
+        getCommandRegistry().registerCommand(new TradeStationCommand(configManager, tradeService, stationViewers, getLogger()));
 
         // Block data: register our component under the name the block JSON and saved chunks use,
         // and the system that turns a destroyed station into an item carrying its balance.
