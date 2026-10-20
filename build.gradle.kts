@@ -40,10 +40,29 @@ hytaleTools {
     // Never use this flag on a public server.
     // (The retail client refuses "--auth-mode insecure", so the dev server must log in via /auth login device.)
     serverArgs.addAll("--allow-op")
+    // The plugin's default -Xms4G -Xmx4G got the dev server OOM-killed in the 7.6 GB sandbox while
+    // Gradle was also running. 2.5 GB is plenty for a small dev world; later -X flags win.
+    serverJvmArgs.addAll("-Xms1G", "-Xmx2560m")
 }
 
 repositories {
     mavenCentral()
+}
+
+// Tests run without a server, but the config parser uses the Gson bundled in the server jar,
+// so put the compile-only server dependency on the test classpath too.
+configurations.testImplementation {
+    extendsFrom(configurations.compileOnly.get())
+}
+
+dependencies {
+    testImplementation(platform("org.junit:junit-bom:6.1.3"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 tasks.named<Jar>("jar") {

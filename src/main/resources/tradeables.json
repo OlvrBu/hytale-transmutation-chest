@@ -1,0 +1,17 @@
+{
+  "spread": 0.25,
+  "items": {
+    "Soil_Dirt": 1,
+    "Soil_Sand": 1,
+    "Soil_Gravel": 1,
+    "Soil_Clay": 2,
+    "Rock_Stone": 1,
+    "Rock_Stone_Cobble": 1,
+    "Rock_Stone_Brick": 3,
+    "Rock_Sandstone": 1,
+    "Rock_Sandstone_Brick": 3,
+    "Wood_Softwood_Planks": 2,
+    "Wood_Hardwood_Planks": 2,
+    "Wood_Lightwood_Planks": 2
+  }
+}
