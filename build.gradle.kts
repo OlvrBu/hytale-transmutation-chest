@@ -35,6 +35,11 @@ hytaleTools {
     injectServerJavadocsIntoSources = property("injectServerJavadocsIntoSources").toString().toBoolean()
     generateAssetsBinary = property("generateAssetsBinary").toString().toBoolean()
     // hytaleHomeOverride = property("hytaleHomeOverride").toString()
+
+    // Dev server only (runServer): "--allow-op" enables /op self so you can grant yourself admin.
+    // Never use this flag on a public server.
+    // (The retail client refuses "--auth-mode insecure", so the dev server must log in via /auth login device.)
+    serverArgs.addAll("--allow-op")
 }
 
 repositories {
@@ -42,7 +47,7 @@ repositories {
 }
 
 tasks.named<Jar>("jar") {
-    archiveBaseName.set(project.property("mod_name").toString())
+    archiveBaseName.set(project.property("mod_id").toString())
     archiveVersion.set(project.property("version").toString())
 }
 
