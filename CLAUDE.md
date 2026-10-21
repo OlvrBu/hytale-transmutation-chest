@@ -1,10 +1,10 @@
-# CLAUDE.md — Trade Station (Hytale server plugin)
+# CLAUDE.md — Transmutation Chest (Hytale server plugin)
 
 ## What this project is
 
-A Hytale (Early Access, 0.7.x) server plugin + asset pack that adds a **Trade Station**: a placeable, interactable block where players sell and buy whitelisted building-block items. The goal is to reduce grinding for specific building materials and reduce inventory juggling, without going full creative mode.
+A Hytale (Early Access, 0.7.x) server plugin + asset pack that adds a **Transmutation Chest**: a placeable, interactable block where players sell and buy whitelisted building-block items. The goal is to reduce grinding for specific building materials and reduce inventory juggling, without going full creative mode.
 
-Working name is "Trade Station" — the owner may rename it; follow whatever `gradle.properties` says.
+Name: "Transmutation Chest" (mod ID `transmutationchest`, item `Transmutation_Chest`, command `/transmutationchest` alias `/tchest`). Renamed on 2026-10-21 from "Trade Station" (the block became a magical chest); the rename deliberately broke compatibility with earlier worlds and config folders. Code calls the block a "chest" throughout.
 
 ## Working with the developer
 
@@ -42,19 +42,19 @@ The Hytale API is young, changes between Early Access updates, and is not well r
 ## Design (decided — do not change without asking)
 
 ### Gameplay
-- Players sell whitelisted items to a station → the station's **balance** increases. Players buy whitelisted items from a station → its balance decreases.
-- **No currency item.** The balance is a number stored on the station itself.
-- **Stations and balances are shared** by all players. No ownership.
-- **Breaking a station keeps its balance in the dropped item.** Placing that item restores the balance. A station item with no balance data places as a fresh station with balance 0.
-- **Unlocks (decided, milestone 6+):** items must be unlocked per station by donating base materials (default 500 per unlock). Unlocks are per station, permanent once complete (even if config amounts change later), pure investment (donated items consumed, no balance credit), and travel with the station item like the balance. Each price seed is its own unlock except configured groups (currently only "Clay": any of 17 clays). An item needs, for every seed its cheapest recipe chain starts from, that seed's unlock; where a recipe accepts several equally cheap materials ("any hardwood log") any one of their unlocks suffices ("any one of" requirements).
+- Players sell whitelisted items to a chest → the chest's **balance** increases. Players buy whitelisted items from a chest → its balance decreases.
+- **No currency item.** The balance is a number stored on the chest itself.
+- **Chests and balances are shared** by all players. No ownership.
+- **Breaking a chest keeps its balance in the dropped item.** Placing that item restores the balance. A chest item with no balance data places as a fresh chest with balance 0.
+- **Unlocks (decided, milestone 6+):** items must be unlocked per chest by donating base materials (default 500 per unlock). Unlocks are per chest, permanent once complete (even if config amounts change later), pure investment (donated items consumed, no balance credit), and travel with the chest item like the balance. Each price seed is its own unlock except configured groups (currently only "Clay": any of 17 clays). An item needs, for every seed its cheapest recipe chain starts from, that seed's unlock; where a recipe accepts several equally cheap materials ("any hardwood log") any one of their unlocks suffices ("any one of" requirements).
 
 ### Data model
 - Balance is a **`long`** (integer value units). No floating-point balances anywhere.
-- Placed block: a custom block component (`StationComponent`, `Component<ChunkStore>`, registered as `TradeStation_Station`) holding the balance, persisted with the chunk.
-- Station item: balance stored in Hytale's built-in `BlockHolder` item metadata (a serialized holder containing just our `StationComponent`). Decided in milestone 4 instead of a plugin-owned key: the server restores `BlockHolder` onto the block when the item is placed, so no custom place handler is needed. A station with balance 0 drops a plain item without metadata.
-- Break handler: a `RefSystem` on block-entity removal (any cause: player break, commands, explosions, builder tools) drops the station item with the balance; the block's own drop is disabled (`Gathering.Breaking.Quantity: 0`). Removal where a station remains at the position (data replaced) does not drop. Creative-mode breaking also drops the item (accepted: a balance must never be silently lost).
+- Placed block: a custom block component (`ChestComponent`, `Component<ChunkStore>`, registered as `TransmutationChest_Data`) holding the balance, persisted with the chunk.
+- Chest item: balance stored in Hytale's built-in `BlockHolder` item metadata (a serialized holder containing just our `ChestComponent`). Decided in milestone 4 instead of a plugin-owned key: the server restores `BlockHolder` onto the block when the item is placed, so no custom place handler is needed. A chest with balance 0 drops a plain item without metadata.
+- Break handler: a `RefSystem` on block-entity removal (any cause: player break, commands, explosions, builder tools) drops the chest item with the balance; the block's own drop is disabled (`Gathering.Breaking.Quantity: 0`). Removal where a chest remains at the position (data replaced) does not drop. Creative-mode breaking also drops the item (accepted: a balance must never be silently lost).
 - Obtaining: crafted at the Workbench, tier 2 (`Workbench_Crafting`, 3 s) from 6 iron bars, 5 logs (any `Wood_Trunk`), 5 rock (any `Rock`) — same tier/cost as the Salvage bench (decided as "late-game").
-- Lid animation (decided 2026-10-21): the station behaves like a two-block chest. `StationLid` switches the block to its `OpenWindow`/`CloseWindow` states (defined in `Trade_Station.json`, vanilla chest animations) when the first viewer opens / last viewer closes the page, like vanilla `OpenContainerInteraction`; the state switch keeps the block entity, so the balance stays. Stations saved while open are reset to closed on chunk load. A custom model must keep a node named `Lid` for the vanilla animations to work.
+- Lid animation (decided 2026-10-21): the block behaves like a vanilla two-block chest. `ChestLid` switches the block to its `OpenWindow`/`CloseWindow` states (defined in `Transmutation_Chest.json`, vanilla chest animations) when the first viewer opens / last viewer closes the page, like vanilla `OpenContainerInteraction`; the state switch keeps the block entity, so the balance stays. Chests saved while open are reset to closed on chunk load. A custom model must keep a node named `Lid` for the vanilla animations to work.
 - Known: in creative mode, placing doesn't consume the item, so a balance-carrying item can be placed repeatedly (accepted; creative can create anything).
 
 ### Config: `tradeables.json`
@@ -76,23 +76,23 @@ Single file serving as both whitelist and price list — an item is tradeable **
 - Loop prevention (e.g. craft → sell → buy cycles) is handled by the owner tuning base prices manually; the plugin just needs to make prices easy to adjust. Optional nice-to-have later: a dev command that flags recipes where outputs sell for more than their inputs.
 - Validate on load: reject/warn on unknown item IDs, non-positive prices, negative spread, malformed JSON. A bad config must never crash the server; log clearly and fall back to an empty/previous config.
 - Ship a sensible default file; the server-side copy is the one admins edit.
-- **Price workflow (built in milestone 6):** prices are not hand-written. Hand-set raw-material prices + exclusions live in `price_seeds.json`; `/tradestation generateprices` derives every craftable block's price from the server's recipes, block-group swaps (Builder's Workbench cycles blocks 1:1 within a `BlockGroup`) and fixed block drops (price = cheapest way to make it, rounded down, so crafting never gains value), writing `generated/tradeables.generated.json` + a report. Review, copy over `tradeables.json`, `/tradestation reload`; `/tradestation checkprices` verifies no craft-and-sell loops. Scope (decided): placeable rock/soil/wood blocks and decoration made from them; no ingredients, weapons, plants, metal, cloth; nothing creative-only. Only items craftable from other tradeable blocks alone are listed (decided: nothing needing sticks, fibre, ... — so grass/pathways are out), but prices are computed over all recipes so loops stay impossible. **First launch:** if `tradeables.json` doesn't exist, the plugin generates it from the server's own recipes (incl. other mods) on BootEvent; on failure it copies the bundled default; an existing file is never overwritten.
+- **Price workflow (built in milestone 6):** prices are not hand-written. Hand-set raw-material prices + exclusions live in `price_seeds.json`; `/transmutationchest generateprices` derives every craftable block's price from the server's recipes, block-group swaps (Builder's Workbench cycles blocks 1:1 within a `BlockGroup`) and fixed block drops (price = cheapest way to make it, rounded down, so crafting never gains value), writing `generated/tradeables.generated.json` + a report. Review, copy over `tradeables.json`, `/transmutationchest reload`; `/transmutationchest checkprices` verifies no craft-and-sell loops. Scope (decided): placeable rock/soil/wood blocks and decoration made from them; no ingredients, weapons, plants, metal, cloth; nothing creative-only. Only items craftable from other tradeable blocks alone are listed (decided: nothing needing sticks, fibre, ... — so grass/pathways are out), but prices are computed over all recipes so loops stay impossible. **First launch:** if `tradeables.json` doesn't exist, the plugin generates it from the server's own recipes (incl. other mods) on BootEvent; on failure it copies the bundled default; an existing file is never overwritten.
 
 ### Correctness rules
 - All buy/sell logic runs server-side. **Re-check balance and inventory at the moment of the transaction**, never trust what a UI last displayed.
 - A transaction is all-or-nothing: never remove items without crediting, never debit without giving items. If the player's inventory can't fit a purchase, don't debit.
 - Guard against `long` overflow on balance additions.
-- If multiple players view the same station, all open views must refresh after any transaction.
+- If multiple players view the same chest, all open views must refresh after any transaction.
 - Keep price math in plain, game-independent Java classes so it's unit-testable without a server.
 
 ## Milestones (do them in order, one at a time)
 
 1. **Hello world**: plugin loads on `runServer`, logs a message. Confirm the environment works.
 2. **`/sell` command** (dev-only): sells the held stack if whitelisted, logs the value. Exercises the inventory API and config loading. Unit tests for price math and config validation.
-3. **Station block**: asset-pack block (reuse an existing bench model at first) that can be placed; interacting with it logs a message.
+3. **Chest block**: asset-pack block (reuse an existing bench model at first) that can be placed; interacting with it logs a message.
 4. **Balance persistence**: block component with balance; survives world reload. Break → item metadata → place round-trip works. **Also test in this milestone:**
     - every way the block can be removed (player break, explosions, admin/builder tools). If some path can't carry the balance, report it and propose a fallback (e.g. block removal while balance > 0, or log it) — ask before choosing;
-    - whether two station items with different balances incorrectly stack together.
+    - whether two chest items with different balances incorrectly stack together.
 5. **UI**: custom UI page opened on interaction: shows balance, sell controls, buy list with prices. `.ui` files go in `src/main/resources/Common/UI/Custom/`. Multi-viewer refresh.
 6. **Polish**: config reload command, permissions if needed, localization strings, final model/texture.
 
@@ -101,13 +101,13 @@ Milestones 4's risk checks come before UI work on purpose: they're the parts mos
 ### Status (as of 2026-10-20): all milestones done, version 1.0.0 (tag `v1.0.0`)
 
 - 1–5 done and confirmed in game. Milestone 4: explosions and builder tools untested (no block-destroying explosive found in 0.7.2; builder tools skipped); removal is handled generically, so they should work. Multi-viewer refresh is implemented but untested with two real players.
-- 6 done. Final model (2026-10-21): the owner's chest-style model, texture and icon, made in Blockbench from the vanilla Royal Magic large chest (`Common/Blocks/TradeStation/`, `Common/Icons/Items/Trade_Station.png`), with a soft violet block light (`"Light": {"Color": "#425"}`, tuned by the owner). The untracked `blockbench/` folder holds the owner's working files and vanilla reference assets; don't commit it. Permissions: plugin commands are operator-only by default, nothing extra needed. Localization: English only, structured for more languages.
-- Beyond the original plan (all owner-requested): price generator + loop checker, recipe, `/tradestation` admin commands (reload, generateprices, checkprices, sell/buy/setbalance, unlock/lock, item, unlockdef, spread), the unlock system, Sell/Buy/Unlock tabs in a workbench-style layout with grid, paging and per-tab search, first-launch generation of tradeables.json.
+- 6 done. Final model (2026-10-21): the owner's chest-style model, texture and icon, made in Blockbench from the vanilla Royal Magic large chest (`Common/Blocks/TransmutationChest/`, `Common/Icons/Items/Transmutation_Chest.png`), with a soft violet block light (`"Light": {"Color": "#425"}`, tuned by the owner). The untracked `blockbench/` folder holds the owner's working files and vanilla reference assets; don't commit it. Permissions: plugin commands are operator-only by default, nothing extra needed. Localization: English only, structured for more languages.
+- Beyond the original plan (all owner-requested): price generator + loop checker, recipe, `/transmutationchest` admin commands (reload, generateprices, checkprices, sell/buy/setbalance, unlock/lock, item, unlockdef, spread), the unlock system, Sell/Buy/Unlock tabs in a workbench-style layout with grid, paging and per-tab search, first-launch generation of tradeables.json.
 - Still open (owner): final names and meta information (`mod_description`, `mod_url`, possibly the mod name).
 
 ## Code conventions
 
-- One responsibility per class: config loading, pricing, station state, interaction handling, UI.
+- One responsibility per class: config loading, pricing, chest state, interaction handling, UI.
 - Log through the plugin logger with a clear prefix; no `System.out`.
 - Unit-test anything that doesn't need the server (pricing, config parsing/validation).
 - Small, reviewable changes. Explain non-obvious Hytale-specific code with a short comment.

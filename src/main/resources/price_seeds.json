@@ -13,7 +13,7 @@
     "Tool."
   ],
   "excludeItems": [
-    "Trade_Station",
+    "Transmutation_Chest",
     "Bench_*",
     "Survival_Trap_*"
   ],

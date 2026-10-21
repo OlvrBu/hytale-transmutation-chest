@@ -1,0 +1,71 @@
+$C = "../../Common.ui";
+
+// One unlock on the Unlock tab: icon, name, what it unlocks, progress, donate buttons
+// (or an "Unlocked" label once complete; the server toggles which is visible).
+
+Group {
+  Anchor: (Height: 56, Bottom: 4);
+  LayoutMode: Left;
+  Background: #1c2835;
+  Padding: (Horizontal: 6, Vertical: 4);
+
+  Group #IconBox {
+    Anchor: (Width: 48, Height: 48);
+    Background: #1a2530;
+    Padding: 2;
+
+    ItemSlot #Icon {
+      Anchor: (Full: 0);
+      ShowQualityBackground: true;
+    }
+  }
+
+  Group #Info {
+    FlexWeight: 1;
+    LayoutMode: Top;
+    Padding: (Left: 10);
+
+    Label #Name {
+      Anchor: (Height: 26);
+      Style: (FontSize: 16, TextColor: #ffffff, RenderBold: true, VerticalAlignment: Center);
+    }
+
+    Label #Details {
+      Anchor: (Height: 20);
+      Style: (FontSize: 13, TextColor: #96a9be, VerticalAlignment: Center);
+    }
+  }
+
+  // Opens the details view listing this unlock's items.
+  $C.@SmallSecondaryTextButton #ViewItems {
+    Anchor: (Left: 8, Width: 90, Height: $C.@SmallButtonHeight);
+    Text: %transmutationchest.ui.viewItems;
+  }
+
+  Label #Progress {
+    Anchor: (Width: 150);
+    Style: (FontSize: 15, TextColor: #E8A93B, HorizontalAlignment: End, VerticalAlignment: Center);
+  }
+
+  Group #DonateButtons {
+    Anchor: (Width: 236);
+    LayoutMode: Left;
+
+    $C.@SmallSecondaryTextButton #Donate1 {
+      Anchor: (Left: 12, Width: 100, Height: $C.@SmallButtonHeight);
+      Text: %transmutationchest.ui.donate1;
+    }
+
+    $C.@SmallSecondaryTextButton #DonateAll {
+      Anchor: (Left: 4, Width: 120, Height: $C.@SmallButtonHeight);
+      Text: %transmutationchest.ui.donateAll;
+    }
+  }
+
+  Label #UnlockedLabel {
+    Anchor: (Width: 236);
+    Style: (FontSize: 15, TextColor: #3d913f, RenderBold: true, HorizontalAlignment: Center, VerticalAlignment: Center);
+    Text: %transmutationchest.ui.unlocked;
+    Visible: false;
+  }
+}

@@ -1,0 +1,196 @@
+$C = "../../Common.ui";
+$Sounds = "../../Sounds.ui";
+
+// Transmutation Chest page, laid out like the vanilla workbench: icon tabs above the window, a breadcrumb
+// title row ("Transmutation Chest > Sell") with toggles and an expanding search, then the list.
+// The server fills the texts and appends one ChestSellRow/BuyRow/UnlockRow.ui per item into #Rows.
+
+$C.@PageOverlay {}
+
+Group #Window {
+  Anchor: (Width: 920, Height: 690);
+  LayoutMode: Top;
+
+  // Tabs on top of the window (built-in TabNavigation; the server is told via SelectedTabChanged).
+  TabNavigation #Tabs {
+    Anchor: (Height: 66, Left: 2, Right: 0);
+    Style: $C.@TopTabsStyle;
+    SelectedTab: "Sell";
+
+    TabButton {
+      Icon: "SellIcon.png";
+      TooltipText: %transmutationchest.ui.tabSell;
+      Id: "Sell";
+    }
+
+    TabButton {
+      Icon: "BuyIcon.png";
+      TooltipText: %transmutationchest.ui.tabBuy;
+      Id: "Buy";
+    }
+
+    TabButton {
+      Icon: "UnlockIcon.png";
+      TooltipText: %transmutationchest.ui.tabUnlock;
+      Id: "Unlock";
+    }
+  }
+
+  $C.@Container {
+    FlexWeight: 1;
+
+    #Title {
+      Group {
+        LayoutMode: Left;
+        Anchor: (Full: 0);
+        Padding: (Left: 19, Right: 6);
+
+        // Breadcrumb: "TRANSMUTATION CHEST > SELL"
+        Label #Crumb {
+          Style: (...$C.@TitleStyle, TextColor: $C.@ColorGrayCaption);
+          Text: %transmutationchest.ui.title;
+        }
+
+        Label #CrumbSeparator {
+          Padding: (Horizontal: 8);
+          Style: (...$C.@TitleStyle, TextColor: $C.@ColorGrayCaption);
+          Text: ">";
+        }
+
+        Label #TabTitle {
+          Style: $C.@TitleStyle;
+          Text: "";
+        }
+
+        Group {
+          FlexWeight: 1;
+        }
+
+        // Magnifying glass that expands into a search field (contains #SearchInput).
+        // Each tab keeps its own search text (the server swaps it in on tab change).
+        $C.@HeaderSearch #Search {}
+
+        // Unlock tab only (the server toggles visibility): icon checkboxes, at the far right.
+        Group #UnlockToggles {
+          LayoutMode: Left;
+          Anchor: (Width: 76, Height: 30);
+          Visible: false;
+
+          CheckBox #ShowUnlocked {
+            Anchor: (Width: 30, Height: 30, Right: 8);
+            TooltipText: %transmutationchest.ui.showUnlocked;
+            Value: false;
+            Style: (
+              Unchecked: (
+                DefaultBackground: "EyeClosed.png",
+                HoveredBackground: "EyeClosed.png",
+                PressedBackground: "EyeClosed.png",
+                ChangedSound: (SoundPath: $Sounds.@Untick, Volume: 6)
+              ),
+              Checked: (
+                DefaultBackground: "EyeOpen.png",
+                HoveredBackground: "EyeOpen.png",
+                PressedBackground: "EyeOpen.png",
+                ChangedSound: (SoundPath: $Sounds.@Tick, Volume: 6)
+              )
+            );
+          }
+
+          CheckBox #CanDonate {
+            Anchor: (Width: 30, Height: 30, Right: 8);
+            TooltipText: %transmutationchest.ui.canDonate;
+            Value: true;
+            Style: (
+              Unchecked: (
+                DefaultBackground: "CrateOff.png",
+                HoveredBackground: "CrateOff.png",
+                PressedBackground: "CrateOff.png",
+                ChangedSound: (SoundPath: $Sounds.@Untick, Volume: 6)
+              ),
+              Checked: (
+                DefaultBackground: "CrateOn.png",
+                HoveredBackground: "CrateOn.png",
+                PressedBackground: "CrateOn.png",
+                ChangedSound: (SoundPath: $Sounds.@Tick, Volume: 6)
+              )
+            );
+          }
+        }
+
+      }
+    }
+
+    #Content {
+      LayoutMode: Top;
+
+      // Balance and the result of the last trade.
+      Group #InfoBar {
+        Anchor: (Height: 36, Bottom: 6);
+        LayoutMode: Left;
+        Padding: (Horizontal: 8);
+
+        // Details view of an unlock only: back to the unlock list.
+        $C.@SmallSecondaryTextButton #InspectBack {
+          Anchor: (Width: 110, Height: $C.@SmallButtonHeight, Right: 12);
+          Text: %transmutationchest.ui.back;
+          Visible: false;
+        }
+
+        Label #Balance {
+          FlexWeight: 1;
+          Style: (FontSize: 20, TextColor: #E8A93B, RenderBold: true, VerticalAlignment: Center);
+          Text: "";
+        }
+
+        Label #Status {
+          FlexWeight: 2;
+          Style: (FontSize: 14, TextColor: #96a9be, HorizontalAlignment: End, VerticalAlignment: Center);
+          Text: "";
+        }
+      }
+
+      $C.@ContentSeparator {}
+
+      Label #NoMatches {
+        Anchor: (Height: 40);
+        Style: (FontSize: 15, TextColor: #878e9c, HorizontalAlignment: Center, VerticalAlignment: Center);
+        Text: "";
+        Visible: false;
+      }
+
+      // Rows are appended directly into the scrolling group, so the server can scroll it back to the
+      // top with ScrollChildIndexIntoView = 0.
+      Group #Rows {
+        FlexWeight: 1;
+        LayoutMode: TopScrolling;
+        ScrollbarStyle: $C.@DefaultScrollbarStyle;
+        Padding: (Top: 8, Right: 8);
+      }
+
+      // Pager: the server sends one page of rows at a time.
+      Group #Pager {
+        Anchor: (Height: 44, Top: 6);
+        LayoutMode: Left;
+        Padding: (Horizontal: 8);
+
+        $C.@SmallSecondaryTextButton #PrevPage {
+          Anchor: (Width: 130, Height: $C.@SmallButtonHeight);
+          Text: %transmutationchest.ui.prevPage;
+        }
+
+        Label #PageLabel {
+          FlexWeight: 1;
+          Style: (FontSize: 14, TextColor: #96a9be, HorizontalAlignment: Center, VerticalAlignment: Center);
+          Text: "";
+        }
+
+        $C.@SmallSecondaryTextButton #NextPage {
+          Anchor: (Width: 130, Height: $C.@SmallButtonHeight);
+          Text: %transmutationchest.ui.nextPage;
+        }
+      }
+    }
+  }
+}
+
+$C.@BackButton {}
