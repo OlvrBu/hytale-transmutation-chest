@@ -5,7 +5,7 @@
   },
   "ItemLevel": 8,
   "MaxStack": 1,
-  "Icon": "Icons/ItemsGenerated/Bench_Architects.png",
+  "Icon": "Icons/ItemsGenerated/Furniture_GrandWizard_Chest_Large.png",
   "Categories": [
     "Furniture.Benches"
   ],
@@ -40,14 +40,26 @@
     "Material": "Solid",
     "DrawType": "Model",
     "Opacity": "Transparent",
-    "CustomModel": "Blocks/Benches/Builder.blockymodel",
+    "CustomModel": "Blocks/Decorative_Sets/Royal_Magic/Chest.blockymodel",
     "CustomModelTexture": [
       {
-        "Texture": "Blocks/Benches/Builder_Texture.png",
+        "Texture": "Blocks/Decorative_Sets/Royal_Magic/Chest_Texture.png",
         "Weight": 1
       }
     ],
-    "HitboxType": "Bench_Architect",
+    "HitboxType": "Chest_Large",
+    "State": {
+      "Definitions": {
+        "OpenWindow": {
+          "InteractionSoundEventId": "SFX_Chest_Wooden_Open",
+          "CustomModelAnimation": "Blocks/Animations/Chest/Chest_Open.blockyanim"
+        },
+        "CloseWindow": {
+          "InteractionSoundEventId": "SFX_Chest_Wooden_Close",
+          "CustomModelAnimation": "Blocks/Animations/Chest/Chest_Close.blockyanim"
+        }
+      }
+    },
     "VariantRotation": "NESW",
     "BlockEntity": {
       "Components": {
@@ -69,8 +81,8 @@
         "Quantity": 0
       }
     },
-    "BlockParticleSetId": "Stone",
-    "ParticleColor": "#5C583E",
+    "BlockParticleSetId": "Wood",
+    "ParticleColor": "#680925",
     "Support": {
       "Down": [
         {
@@ -78,16 +90,16 @@
         }
       ]
     },
-    "BlockSoundSetId": "Stone",
-    "PhysicalMaterialId": "Stone",
-    "TextureComputedColor": "#767267"
+    "BlockSoundSetId": "Wood",
+    "PhysicalMaterialId": "Wood",
+    "TextureComputedColor": "#8B3427"
   },
   "PlayerAnimationsId": "Block",
   "IconProperties": {
-    "Scale": 0.365,
+    "Scale": 0.5,
     "Translation": [
-      13.5,
-      -11.1
+      13,
+      -9
     ],
     "Rotation": [
       22.5,

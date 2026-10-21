@@ -54,6 +54,7 @@ The Hytale API is young, changes between Early Access updates, and is not well r
 - Station item: balance stored in Hytale's built-in `BlockHolder` item metadata (a serialized holder containing just our `StationComponent`). Decided in milestone 4 instead of a plugin-owned key: the server restores `BlockHolder` onto the block when the item is placed, so no custom place handler is needed. A station with balance 0 drops a plain item without metadata.
 - Break handler: a `RefSystem` on block-entity removal (any cause: player break, commands, explosions, builder tools) drops the station item with the balance; the block's own drop is disabled (`Gathering.Breaking.Quantity: 0`). Removal where a station remains at the position (data replaced) does not drop. Creative-mode breaking also drops the item (accepted: a balance must never be silently lost).
 - Obtaining: crafted at the Workbench, tier 2 (`Workbench_Crafting`, 3 s) from 6 iron bars, 5 logs (any `Wood_Trunk`), 5 rock (any `Rock`) — same tier/cost as the Salvage bench (decided as "late-game").
+- Lid animation (decided 2026-10-21): the station behaves like a two-block chest. `StationLid` switches the block to its `OpenWindow`/`CloseWindow` states (defined in `Trade_Station.json`, vanilla chest animations) when the first viewer opens / last viewer closes the page, like vanilla `OpenContainerInteraction`; the state switch keeps the block entity, so the balance stays. Stations saved while open are reset to closed on chunk load. A custom model must keep a node named `Lid` for the vanilla animations to work.
 - Known: in creative mode, placing doesn't consume the item, so a balance-carrying item can be placed repeatedly (accepted; creative can create anything).
 
 ### Config: `tradeables.json`
@@ -100,7 +101,7 @@ Milestones 4's risk checks come before UI work on purpose: they're the parts mos
 ### Status (as of 2026-10-20): all milestones done, version 1.0.0 (tag `v1.0.0`)
 
 - 1–5 done and confirmed in game. Milestone 4: explosions and builder tools untested (no block-destroying explosive found in 0.7.2; builder tools skipped); removal is handled generically, so they should work. Multi-viewer refresh is implemented but untested with two real players.
-- 6 done except the **final model/texture, deferred by the owner** (station still reuses the Builder's Workbench model). Permissions: plugin commands are operator-only by default, nothing extra needed. Localization: English only, structured for more languages.
+- 6 done except the **final model/texture, deferred by the owner** (station temporarily reuses the vanilla Royal Magic large chest model; the owner is building a custom chest-style model in Blockbench from it). Permissions: plugin commands are operator-only by default, nothing extra needed. Localization: English only, structured for more languages.
 - Beyond the original plan (all owner-requested): price generator + loop checker, recipe, `/tradestation` admin commands (reload, generateprices, checkprices, sell/buy/setbalance, unlock/lock, item, unlockdef, spread), the unlock system, Sell/Buy/Unlock tabs in a workbench-style layout with grid, paging and per-tab search, first-launch generation of tradeables.json.
 - Still open (owner): final names and meta information (`mod_description`, `mod_url`, possibly the mod name), custom model.
 

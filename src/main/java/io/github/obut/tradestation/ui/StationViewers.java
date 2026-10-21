@@ -1,6 +1,7 @@
 package io.github.obut.tradestation.ui;
 
 import com.hypixel.hytale.server.core.universe.world.World;
+import io.github.obut.tradestation.station.StationLid;
 import org.joml.Vector3i;
 
 import java.util.List;
@@ -26,16 +27,30 @@ public final class StationViewers {
 
     private final Map<Key, Set<StationPage>> pages = new ConcurrentHashMap<>();
 
+    /** Registers an open page; the first viewer opens the station's lid. Call on the world thread. */
     void add(World world, Vector3i pos, StationPage page) {
-        pages.computeIfAbsent(Key.of(world, pos), k -> ConcurrentHashMap.newKeySet()).add(page);
+        Set<StationPage> set = pages.computeIfAbsent(Key.of(world, pos), k -> ConcurrentHashMap.newKeySet());
+        if (set.add(page) && set.size() == 1) {
+            StationLid.open(world, pos);
+        }
     }
 
+    /** Unregisters a closed page; the last viewer closes the station's lid. Call on the world thread. */
     void remove(World world, Vector3i pos, StationPage page) {
+        boolean[] wasLast = {false}; // lambdas can only write to captured arrays, not local variables
         // computeIfPresent returning null removes the entry, so empty sets don't pile up.
         pages.computeIfPresent(Key.of(world, pos), (k, set) -> {
-            set.remove(page);
+            wasLast[0] = set.remove(page) && set.isEmpty();
             return set.isEmpty() ? null : set;
         });
+        if (wasLast[0]) {
+            StationLid.close(world, pos);
+        }
+    }
+
+    /** Whether anyone has this station's page open. */
+    public boolean isViewed(World world, Vector3i pos) {
+        return pages.containsKey(Key.of(world, pos));
     }
 
     private List<StationPage> viewersOf(World world, Vector3i pos) {

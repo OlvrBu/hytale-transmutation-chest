@@ -55,8 +55,23 @@ public class StationLifecycleSystem extends RefSystem<ChunkStore> {
     @Override
     public void onEntityAdded(@Nonnull Ref<ChunkStore> ref, @Nonnull AddReason reason,
                               @Nonnull Store<ChunkStore> store, @Nonnull CommandBuffer<ChunkStore> commandBuffer) {
+        if (reason == AddReason.LOAD) {
+            // An existing station's chunk was loaded from disk. Its lid state is saved with the block,
+            // so a station saved while open would load open: close it. Not inside the chunk store's
+            // update, so as a separate task on the world thread.
+            Vector3i pos = positionOf(ref, commandBuffer);
+            World world = store.getExternalData().getWorld();
+            if (pos != null) {
+                world.execute(() -> {
+                    if (!viewers.isViewed(world, pos)) {
+                        StationLid.resetIfOpen(world, pos);
+                    }
+                });
+            }
+            return;
+        }
         if (reason != AddReason.SPAWN) {
-            return; // LOAD = an existing station's chunk was loaded from disk
+            return;
         }
         StationComponent station = commandBuffer.getComponent(ref, StationComponent.getComponentType());
         Vector3i pos = positionOf(ref, commandBuffer);
