@@ -16,3 +16,6 @@ run/
 
 # Price generator output (written into the plugin data dir = src/main/resources in dev)
 src/main/resources/generated/
+
+# Blockbench files
+blockbench/
