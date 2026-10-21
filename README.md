@@ -28,13 +28,16 @@ specific building materials and on inventory juggling, without going full creati
 
 ### Getting a chest
 
-Craft it at a **Workbench upgraded to tier 2** (crafting category), 3 seconds:
+Craft it at the **Arcanist's Workbench** (Misc tab), 3 seconds:
 
 | Ingredient | Amount |
 |---|---|
-| Iron bar | 6 |
-| Any log | 5 |
-| Any rock | 5 |
+| Azure Log | 15 |
+| Marble | 10 |
+| Essence of Ice | 50 |
+| Essence of Life | 50 |
+| Essence of Fire | 50 |
+| Voidheart | 1 |
 
 ### Using a chest
 
