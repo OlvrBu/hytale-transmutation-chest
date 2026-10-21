@@ -101,9 +101,9 @@ Milestones 4's risk checks come before UI work on purpose: they're the parts mos
 ### Status (as of 2026-10-20): all milestones done, version 1.0.0 (tag `v1.0.0`)
 
 - 1–5 done and confirmed in game. Milestone 4: explosions and builder tools untested (no block-destroying explosive found in 0.7.2; builder tools skipped); removal is handled generically, so they should work. Multi-viewer refresh is implemented but untested with two real players.
-- 6 done except the **final model/texture, deferred by the owner** (station temporarily reuses the vanilla Royal Magic large chest model; the owner is building a custom chest-style model in Blockbench from it). Permissions: plugin commands are operator-only by default, nothing extra needed. Localization: English only, structured for more languages.
+- 6 done. Final model (2026-10-21): the owner's chest-style model, texture and icon, made in Blockbench from the vanilla Royal Magic large chest (`Common/Blocks/TradeStation/`, `Common/Icons/Items/Trade_Station.png`), with a soft violet block light (`"Light": {"Color": "#425"}`, tuned by the owner). The untracked `blockbench/` folder holds the owner's working files and vanilla reference assets; don't commit it. Permissions: plugin commands are operator-only by default, nothing extra needed. Localization: English only, structured for more languages.
 - Beyond the original plan (all owner-requested): price generator + loop checker, recipe, `/tradestation` admin commands (reload, generateprices, checkprices, sell/buy/setbalance, unlock/lock, item, unlockdef, spread), the unlock system, Sell/Buy/Unlock tabs in a workbench-style layout with grid, paging and per-tab search, first-launch generation of tradeables.json.
-- Still open (owner): final names and meta information (`mod_description`, `mod_url`, possibly the mod name), custom model.
+- Still open (owner): final names and meta information (`mod_description`, `mod_url`, possibly the mod name).
 
 ## Code conventions
 

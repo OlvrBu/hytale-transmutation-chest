@@ -263,7 +263,6 @@ test makes sure every key the code and UI use exists in the English file.
 
 ## Known limitations
 
-- The station reuses the Royal Magic large chest model; it has no model of its own yet.
 - **Creative mode:** placing a block doesn't use up the item there, so a station item carrying a
   balance and unlocks can be placed repeatedly. Breaking a station in creative mode drops its item, so a balance
   is never silently lost.

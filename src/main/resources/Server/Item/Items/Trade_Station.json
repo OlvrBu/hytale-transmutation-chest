@@ -5,7 +5,7 @@
   },
   "ItemLevel": 8,
   "MaxStack": 1,
-  "Icon": "Icons/ItemsGenerated/Furniture_GrandWizard_Chest_Large.png",
+  "Icon": "Icons/Items/Trade_Station.png",
   "Categories": [
     "Furniture.Benches"
   ],
@@ -40,10 +40,10 @@
     "Material": "Solid",
     "DrawType": "Model",
     "Opacity": "Transparent",
-    "CustomModel": "Blocks/Decorative_Sets/Royal_Magic/Chest.blockymodel",
+    "CustomModel": "Blocks/TradeStation/Trade_Station.blockymodel",
     "CustomModelTexture": [
       {
-        "Texture": "Blocks/Decorative_Sets/Royal_Magic/Chest_Texture.png",
+        "Texture": "Blocks/TradeStation/Trade_Station_Texture.png",
         "Weight": 1
       }
     ],
@@ -92,7 +92,10 @@
     },
     "BlockSoundSetId": "Wood",
     "PhysicalMaterialId": "Wood",
-    "TextureComputedColor": "#8B3427"
+    "TextureComputedColor": "#8B3427",
+    "Light": {
+      "Color": "#425"
+    }
   },
   "PlayerAnimationsId": "Block",
   "IconProperties": {
