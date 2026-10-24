@@ -105,7 +105,7 @@ Single file serving as both whitelist and price list — an item is tradeable **
 
 Milestones 4's risk checks come before UI work on purpose: they're the parts most likely to force a design change.
 
-### Status (as of 2026-10-20): all milestones done, version 1.0.0 (tag `v1.0.0`)
+### Status (as of 2026-10-24): all milestones done, version 1.1.0 (tag `v1.1.0`; changes per version in CHANGELOG.md)
 
 - 1–5 done and confirmed in game. Milestone 4: explosions and builder tools untested (no block-destroying explosive found in 0.7.2; builder tools skipped); removal is handled generically, so they should work. Multi-viewer refresh is implemented but untested with two real players.
 - 6 done. Final model (2026-10-21): the owner's chest-style model, texture and icon, made in Blockbench from the vanilla Royal Magic large chest (`Common/Blocks/TransmutationChest/`, `Common/Icons/Items/Transmutation_Chest.png`), with a soft violet block light (`"Light": {"Color": "#425"}`, tuned by the owner). The untracked `blockbench/` folder holds the owner's working files and vanilla reference assets; don't commit it. Permissions: plugin commands are operator-only by default, nothing extra needed. Localization: English only, structured for more languages.

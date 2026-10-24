@@ -4,7 +4,7 @@ A Hytale server plugin that adds the **Transmutation Chest**: a placeable block 
 building blocks they don't need and buy the ones they do. It's meant to cut down on grinding for
 specific building materials and on inventory juggling, without going full creative mode.
 
-> **Status:** version 1.0.0, built against Hytale Early Access **0.7.2**
+> **Status:** version 1.1.0 (see [CHANGELOG.md](CHANGELOG.md)), built against Hytale Early Access **0.7.2**
 > (`ServerVersion >=0.7.2 <0.8.0`). The Hytale API changes between Early Access updates.
 
 ## How it works
