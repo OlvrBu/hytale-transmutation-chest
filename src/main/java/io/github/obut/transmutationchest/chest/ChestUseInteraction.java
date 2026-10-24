@@ -65,7 +65,7 @@ public class ChestUseInteraction extends SimpleBlockInteraction {
         plugin.getLogger().at(Level.FINE).log("%s opened the Transmutation Chest at (%d, %d, %d) in %s",
                 player.getUsername(), pos.x, pos.y, pos.z, world.getName());
         ChestPage page = new ChestPage(player, world, pos, plugin.getConfigManager(), plugin.getTradeService(),
-                plugin.getChestViewers());
+                plugin.getChestViewers(), plugin.getRecentItems());
         playerComponent.getPageManager().openCustomPage(context.getEntity(), commandBuffer.getStore(), page);
     }
 

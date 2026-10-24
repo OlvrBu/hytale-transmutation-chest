@@ -1,4 +1,12 @@
-// Container for the item squares on the Sell/Buy tabs: fills left to right, wraps to the next row.
-Group #Grid {
-  LayoutMode: LeftCenterWrap;
+// Container for the item squares on the Buy tab and unlock details view: fills left to right, wraps to the next row.
+// #Grid is exactly 10 squares wide (ChestCell.ui is 84 wide) and centred, so a short first row starts
+// where a full one would instead of being centred on its own (LeftCenterWrap did that).
+
+Group {
+  LayoutMode: Center;
+
+  Group #Grid {
+    Anchor: (Width: 840);
+    LayoutMode: LeftWrap;
+  }
 }

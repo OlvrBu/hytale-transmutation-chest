@@ -1,6 +1,6 @@
 $C = "../../Common.ui";
 
-// One item on the Sell/Buy tabs: a square button showing the item (hover for its name), how many you
+// One item on the Buy tab (and the unlock details view): a square button showing the item (hover for its name), how many you
 // have (top left) and its price (bottom right). Click = 1, Shift+Click or right-click = one stack.
 
 Group {

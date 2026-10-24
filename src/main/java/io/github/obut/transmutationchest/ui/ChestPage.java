@@ -35,6 +35,7 @@ import org.joml.Vector3i;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -53,11 +54,12 @@ public class ChestPage extends InteractiveCustomUIPage<ChestPage.Event> {
     private static final String LAYOUT = "Pages/TransmutationChest/ChestPage.ui";
     private static final String GRID = "Pages/TransmutationChest/ChestGrid.ui";
     private static final String CELL = "Pages/TransmutationChest/ChestCell.ui";
+    private static final String SELL_ROW = "Pages/TransmutationChest/ChestSellRow.ui";
     private static final String UNLOCK_ROW = "Pages/TransmutationChest/ChestUnlockRow.ui";
 
     /** Tabs; {@code id} matches the TabButton Ids in ChestPage.ui. */
     enum Tab {
-        SELL("Sell", "ui.titleSell"), BUY("Buy", "ui.titleBuy"), UNLOCK("Unlock", "ui.titleUnlock");
+        BUY("Buy", "ui.titleBuy"), SELL("Sell", "ui.titleSell"), UNLOCK("Unlock", "ui.titleUnlock");
 
         final String id;
         final String titleKey;
@@ -86,8 +88,7 @@ public class ChestPage extends InteractiveCustomUIPage<ChestPage.Event> {
                 // "@" keys hold a UI element's current value, read by the client when the event fires.
                 .append(new KeyedCodec<>("@Search", Codec.STRING), (e, s) -> e.search = s, e -> e.search).add()
                 .append(new KeyedCodec<>("@Tab", Codec.STRING), (e, s) -> e.tab = s, e -> e.tab).add()
-                .append(new KeyedCodec<>("@ShowUnlocked", Codec.BOOLEAN), (e, b) -> e.showUnlocked = b, e -> e.showUnlocked).add()
-                .append(new KeyedCodec<>("@CanDonate", Codec.BOOLEAN), (e, b) -> e.canDonate = b, e -> e.canDonate).add()
+                .append(new KeyedCodec<>("@Group", Codec.STRING), (e, s) -> e.group = s, e -> e.group).add()
                 // Not bound by us: the client adds it to click events (as Hytale's barter shop relies on).
                 .append(new KeyedCodec<>("ShiftHeld", Codec.BOOLEAN), (e, b) -> e.shiftHeld = b, e -> e.shiftHeld).add()
                 .build();
@@ -97,9 +98,8 @@ public class ChestPage extends InteractiveCustomUIPage<ChestPage.Event> {
         String quantity;
         String search;
         String tab;
-        // Boxed: null when the event didn't come from that checkbox.
-        Boolean showUnlocked;
-        Boolean canDonate;
+        String group;
+        // Boxed: null when the client didn't send it.
         Boolean shiftHeld;
     }
 
@@ -108,25 +108,26 @@ public class ChestPage extends InteractiveCustomUIPage<ChestPage.Event> {
     private final TradeConfigManager configManager;
     private final TradeService tradeService;
     private final ChestViewers viewers;
+    private final RecentItems recents;
 
     /**
-     * Entries per page (the client freezes noticeably when sent hundreds at once): unlock rows, and
-     * item squares (10 per row x 5 rows, which fits the window without scrolling).
+     * Entries per page (the client freezes noticeably when sent hundreds at once): unlock and sell rows,
+     * and item squares (10 per row x 5 rows, which fits the window without scrolling).
      */
     static final int PAGE_SIZE = 30;
     static final int GRID_PAGE_SIZE = 50;
 
-    /** All tradeable item IDs (config order) and their translated names, for filtering. */
+    /** Config order of the tradeable items, to notice reloads. */
+    private List<String> configured = List.of();
+    /** All tradeable item IDs sorted by translated name, with their names and Buy groups (same indices). */
     private List<String> allItems = List.of();
     private List<String> displayNames = List.of();
+    private List<BuyGroup> itemGroups = List.of();
     /** Search text per tab: searching on Buy doesn't affect Sell or Unlock. */
     private final Map<Tab, String> searches = new java.util.EnumMap<>(Tab.class);
-    private Tab tab = Tab.SELL;
-    /** Unlock-tab toggles; defaults must match the "Value:" of #ShowUnlocked / #CanDonate in ChestPage.ui. */
-    private boolean showUnlocked = false;
-    private boolean canDonateOnly = true;
-    /** False until the first render picked the starting tab (or the player picked one). */
-    private boolean tabChosen = false;
+    private Tab tab = Tab.BUY;
+    /** Must match the SelectedTab of #Groups in ChestPage.ui. */
+    private BuyGroup group = BuyGroup.RECENTS;
     private int page = 0;
     /** Scroll the list back to the top on the next render (page, tab or filter changed). */
     private boolean scrollToTop = false;
@@ -140,7 +141,7 @@ public class ChestPage extends InteractiveCustomUIPage<ChestPage.Event> {
     private Message status;
 
     public ChestPage(PlayerRef playerRef, World world, Vector3i chestPos, TradeConfigManager configManager,
-                     TradeService tradeService, ChestViewers viewers) {
+                     TradeService tradeService, ChestViewers viewers, RecentItems recents) {
         // CanDismissOrCloseThroughInteraction: Esc closes it, and so does using another block.
         super(playerRef, CustomPageLifetime.CanDismissOrCloseThroughInteraction, Event.CODEC);
         this.world = world;
@@ -148,6 +149,7 @@ public class ChestPage extends InteractiveCustomUIPage<ChestPage.Event> {
         this.configManager = configManager;
         this.tradeService = tradeService;
         this.viewers = viewers;
+        this.recents = recents;
     }
 
     @Override
@@ -159,13 +161,11 @@ public class ChestPage extends InteractiveCustomUIPage<ChestPage.Event> {
         // Filters: the client sends the field's / checkbox's new value whenever it changes.
         events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#SearchInput",
                 EventData.of("@Search", "#SearchInput.Value"), false);
-        events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#ShowUnlocked",
-                EventData.of("@ShowUnlocked", "#ShowUnlocked.Value"), false);
-        events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#CanDonate",
-                EventData.of("@CanDonate", "#CanDonate.Value"), false);
         // Built-in tab bar: reports the newly selected tab's Id.
         events.addEventBinding(CustomUIEventBindingType.SelectedTabChanged, "#Tabs",
                 EventData.of("@Tab", "#Tabs.SelectedTab"), false);
+        events.addEventBinding(CustomUIEventBindingType.SelectedTabChanged, "#Groups",
+                EventData.of("@Group", "#Groups.SelectedTab"), false);
         events.addEventBinding(CustomUIEventBindingType.Activating, "#PrevPage",
                 EventData.of("Action", "Page").append("Quantity", "-1"), false);
         events.addEventBinding(CustomUIEventBindingType.Activating, "#InspectBack",
@@ -182,7 +182,6 @@ public class ChestPage extends InteractiveCustomUIPage<ChestPage.Event> {
             Tab selected = Tab.byId(event.tab);
             if (selected != null && selected != tab) {
                 tab = selected;
-                tabChosen = true;
                 inspecting = null;
                 page = 0;
                 scrollToTop = true;
@@ -191,16 +190,14 @@ public class ChestPage extends InteractiveCustomUIPage<ChestPage.Event> {
             }
             return;
         }
-        if (event.showUnlocked != null || event.canDonate != null) {
-            if (event.showUnlocked != null) {
-                showUnlocked = event.showUnlocked;
+        if (event.group != null) {
+            BuyGroup selected = BuyGroup.byId(event.group);
+            if (selected != null && selected != group) {
+                group = selected;
+                page = 0;
+                scrollToTop = true;
+                refresh();
             }
-            if (event.canDonate != null) {
-                canDonateOnly = event.canDonate;
-            }
-            page = 0;
-            scrollToTop = true;
-            refresh();
             return;
         }
         if (event.search != null) {
@@ -239,7 +236,9 @@ public class ChestPage extends InteractiveCustomUIPage<ChestPage.Event> {
             // Shift+Click (or right-click) on an item square = one stack, for selling and buying alike.
             boolean all = event.quantity.equals("All") || Boolean.TRUE.equals(event.shiftHeld);
             if (event.action.equals("Sell")) {
-                int quantity = all ? buyStackSize(event.itemId) : Integer.parseInt(event.quantity); // capped at what you have
+                // "All" = everything you have; Shift+Click on "Sell 1" = one stack (both capped at what you have).
+                int quantity = event.quantity.equals("All") ? Integer.MAX_VALUE
+                        : all ? buyStackSize(event.itemId) : Integer.parseInt(event.quantity);
                 result = tradeService.sell(world, chestPos, store, ref, event.itemId, quantity);
             } else if (event.action.equals("Buy")) {
                 int quantity = all ? buyStackSize(event.itemId) : Integer.parseInt(event.quantity);
@@ -255,6 +254,9 @@ public class ChestPage extends InteractiveCustomUIPage<ChestPage.Event> {
             return; // not something our page sends
         }
         status = result.message();
+        if (result.success() && event.action.equals("Buy")) {
+            recents.record(playerRef.getUuid(), event.itemId);
+        }
         if (result.success()) {
             viewers.refreshAll(world, chestPos); // includes this page
         } else {
@@ -298,15 +300,10 @@ public class ChestPage extends InteractiveCustomUIPage<ChestPage.Event> {
      */
     private void render(UICommandBuilder ui, UIEventBuilder events, Store<EntityStore> store, Ref<EntityStore> ref) {
         TradeConfig config = configManager.current();
-        List<String> configured = new ArrayList<>(config.basePrices().keySet());
-        if (!configured.equals(allItems)) { // first render, or the config was reloaded
-            allItems = configured;
-            List<String> names = new ArrayList<>(allItems.size());
-            for (String itemId : allItems) {
-                Item item = Item.getAssetMap().getAsset(itemId);
-                names.add(item == null ? itemId : translate(item.getTranslationKey()));
-            }
-            displayNames = names;
+        List<String> current = new ArrayList<>(config.basePrices().keySet());
+        if (!current.equals(configured)) { // first render, or the config was reloaded
+            configured = current;
+            loadItems();
         }
 
         Ref<ChunkStore> chestRef = ChestAccess.findChest(world, chestPos.x, chestPos.y, chestPos.z);
@@ -314,21 +311,6 @@ public class ChestPage extends InteractiveCustomUIPage<ChestPage.Event> {
                 : chestRef.getStore().getComponent(chestRef, ChestComponent.getComponentType());
         UnlockProgress unlocks = chest == null ? new UnlockProgress() : chest.getUnlocks();
         long balance = chest == null ? 0 : chest.getBalance();
-
-        // A chest that has unlocked nothing yet opens on the Unlock tab (Sell/Buy would be empty).
-        if (!tabChosen) {
-            tabChosen = true;
-            boolean anyTradeable = false;
-            for (String itemId : allItems) {
-                if (unlocks.canTrade(itemId, config)) {
-                    anyTradeable = true;
-                    break;
-                }
-            }
-            if (!anyTradeable && !config.unlocks().isEmpty()) {
-                tab = Tab.UNLOCK;
-            }
-        }
 
         ui.set("#Balance.Text", Texts.of("ui.balance").param("balance", balance));
         if (status == null && tab != Tab.UNLOCK) {
@@ -345,8 +327,12 @@ public class ChestPage extends InteractiveCustomUIPage<ChestPage.Event> {
         boolean inspect = tab == Tab.UNLOCK && inspecting != null;
         ui.set("#TabTitle.Text", inspect
                 ? Texts.of("ui.titleInspect").param("unlock", Texts.unlockNameText(inspecting, playerRef.getLanguage()))
+                // Plain text: a nested translated Message parameter isn't filled in on custom pages.
+                : tab == Tab.BUY ? Texts.of("ui.titleBuyGroup").param("group",
+                        translate(Texts.key(searchFilter().words().isEmpty() ? group.titleKey : "ui.groupAll")))
                 : Texts.of(tab.titleKey));
-        ui.set("#UnlockToggles.Visible", tab == Tab.UNLOCK && !inspect);
+        ui.set("#Groups.Visible", tab == Tab.BUY);
+        ui.set("#Groups.SelectedTab", group.id);
         ui.set("#InspectBack.Visible", inspect);
         if (restoreSearchText) {
             ui.set("#SearchInput.Value", searches.getOrDefault(tab, ""));
@@ -357,9 +343,11 @@ public class ChestPage extends InteractiveCustomUIPage<ChestPage.Event> {
         ui.clear("#Rows");
         int matches = inspect ? renderInspect(ui, inventory, config)
                 : tab == Tab.UNLOCK ? renderUnlocks(ui, events, inventory, config, unlocks)
-                : renderItems(ui, events, inventory, config, unlocks, balance);
+                : tab == Tab.SELL ? renderSell(ui, events, inventory, config, unlocks)
+                : renderBuy(ui, events, inventory, config, unlocks, balance);
 
-        int pages = Paging.pageCount(matches, tab == Tab.UNLOCK && !inspect ? PAGE_SIZE : GRID_PAGE_SIZE);
+        boolean rows = tab == Tab.SELL || tab == Tab.UNLOCK && !inspect;
+        int pages = Paging.pageCount(matches, rows ? PAGE_SIZE : GRID_PAGE_SIZE);
         ui.set("#PageLabel.Text", Texts.of("ui.page").param("page", page + 1).param("pages", pages)
                 .param("count", matches));
         ui.set("#PrevPage.Disabled", page == 0);
@@ -371,10 +359,14 @@ public class ChestPage extends InteractiveCustomUIPage<ChestPage.Event> {
         scrollToTop = false;
     }
 
-    /** Sell/Buy tabs: items this chest has unlocked (Sell: only those you have). Returns the match count. */
-    private int renderItems(UICommandBuilder ui, UIEventBuilder events, CombinedItemContainer inventory,
-                            TradeConfig config, UnlockProgress unlocks, long balance) {
-        ItemFilter filter = searchFilter().withOwnedOnly(tab == Tab.SELL);
+    /**
+     * Buy tab: items this chest has unlocked, in the selected group (or in all groups while searching),
+     * as a grid of squares. Alphabetical, except Recents (newest first). Returns the match count.
+     */
+    private int renderBuy(UICommandBuilder ui, UIEventBuilder events, CombinedItemContainer inventory,
+                          TradeConfig config, UnlockProgress unlocks, long balance) {
+        ItemFilter filter = searchFilter();
+        boolean searching = !filter.words().isEmpty();
         List<String> matching = new ArrayList<>();
         boolean anyUnlocked = false;
         for (int i = 0; i < allItems.size(); i++) {
@@ -383,15 +375,23 @@ public class ChestPage extends InteractiveCustomUIPage<ChestPage.Event> {
                 continue;
             }
             anyUnlocked = true;
-            // Counting is only needed for the Sell tab's "only items you have" rule.
-            int owned = filter.ownedOnly() ? TradeService.countOwned(inventory, itemId) : 1;
-            if (filter.matches(itemId, displayNames.get(i), owned)) {
+            if ((searching || itemGroups.get(i) == group) && filter.matches(itemId, displayNames.get(i), 1)) {
                 matching.add(itemId);
             }
         }
+        if (group == BuyGroup.RECENTS && !searching) {
+            // Recently bought items (at any chest) that are tradeable here, newest first.
+            matching.clear();
+            for (String itemId : recents.of(playerRef.getUuid())) {
+                if (config.basePrice(itemId).isPresent() && unlocks.canTrade(itemId, config)) {
+                    matching.add(itemId);
+                }
+            }
+        }
         ui.set("#NoMatches.Text", Texts.of(!anyUnlocked ? "ui.nothingUnlocked"
-                : !filter.words().isEmpty() ? "ui.noMatches"
-                : tab == Tab.SELL ? "ui.nothingToSell" : "ui.nothingToBuy"));
+                : searching ? "ui.noMatches"
+                : group == BuyGroup.RECENTS ? "ui.noRecents"
+                : "ui.nothingInGroup"));
 
         page = Paging.clamp(page, matching.size(), GRID_PAGE_SIZE);
         List<String> shown = Paging.slice(matching, page, GRID_PAGE_SIZE);
@@ -400,7 +400,7 @@ public class ChestPage extends InteractiveCustomUIPage<ChestPage.Event> {
             String itemId = shown.get(i);
             String cell = "#Grid[" + i + "]";
             long base = config.basePrice(itemId).orElse(0);
-            long price = tab == Tab.SELL ? base : base > 0 ? Pricing.buyPrice(base, config.spread()) : 0;
+            long price = base > 0 ? Pricing.buyPrice(base, config.spread()) : 0;
             int owned = TradeService.countOwned(inventory, itemId);
 
             ui.append("#Grid", CELL);
@@ -410,13 +410,50 @@ public class ChestPage extends InteractiveCustomUIPage<ChestPage.Event> {
                 ui.set(cell + " #Count.Text", Texts.of("ui.cellNumber").param("n", owned));
             }
             // Convenience only: TradeService re-checks everything when the square is clicked.
-            if (tab == Tab.BUY) {
-                ui.set(cell + " #Cell.Disabled", price > balance);
-            }
-            String action = tab == Tab.SELL ? "Sell" : "Buy";
-            bind(events, cell + " #Cell", action, itemId, "1");
+            ui.set(cell + " #Cell.Disabled", price > balance);
+            bind(events, cell + " #Cell", "Buy", itemId, "1");
             events.addEventBinding(CustomUIEventBindingType.RightClicking, cell + " #Cell",
-                    EventData.of("Action", action).append("Item", itemId).append("Quantity", "All"), false);
+                    EventData.of("Action", "Buy").append("Item", itemId).append("Quantity", "All"), false);
+        }
+        return matching.size();
+    }
+
+    /** Sell tab: unlocked items you have, one row each with sell buttons. Returns the match count. */
+    private int renderSell(UICommandBuilder ui, UIEventBuilder events, CombinedItemContainer inventory,
+                           TradeConfig config, UnlockProgress unlocks) {
+        ItemFilter filter = searchFilter().withOwnedOnly(true);
+        List<String> matching = new ArrayList<>();
+        Map<String, Integer> owned = new HashMap<>();
+        boolean anyUnlocked = false;
+        for (int i = 0; i < allItems.size(); i++) {
+            String itemId = allItems.get(i);
+            if (!unlocks.canTrade(itemId, config)) {
+                continue;
+            }
+            anyUnlocked = true;
+            int have = TradeService.countOwned(inventory, itemId);
+            if (filter.matches(itemId, displayNames.get(i), have)) {
+                matching.add(itemId);
+                owned.put(itemId, have);
+            }
+        }
+        ui.set("#NoMatches.Text", Texts.of(!anyUnlocked ? "ui.nothingUnlocked"
+                : !filter.words().isEmpty() ? "ui.noMatches"
+                : "ui.nothingToSell"));
+
+        page = Paging.clamp(page, matching.size(), PAGE_SIZE);
+        List<String> shown = Paging.slice(matching, page, PAGE_SIZE);
+        for (int i = 0; i < shown.size(); i++) {
+            String itemId = shown.get(i);
+            String row = "#Rows[" + i + "]";
+            ui.append("#Rows", SELL_ROW);
+            ui.set(row + " #Icon.ItemId", itemId);
+            ui.set(row + " #Name.Text", Texts.itemName(itemId));
+            ui.set(row + " #Have.Text", Texts.of("ui.have").param("count", owned.get(itemId)));
+            ui.set(row + " #Price.Text", Texts.of("ui.sellPrice").param("price", config.basePrice(itemId).orElse(0)));
+            // Convenience only: TradeService re-checks everything when a button is pressed.
+            bind(events, row + " #Sell1", "Sell", itemId, "1");
+            bind(events, row + " #SellAll", "Sell", itemId, "All");
         }
         return matching.size();
     }
@@ -426,7 +463,8 @@ public class ChestPage extends InteractiveCustomUIPage<ChestPage.Event> {
      * the name). Read-only. Returns the item count.
      */
     private int renderInspect(UICommandBuilder ui, CombinedItemContainer inventory, TradeConfig config) {
-        List<String> items = config.itemsUsing(inspecting);
+        Set<String> using = Set.copyOf(config.itemsUsing(inspecting));
+        List<String> items = allItems.stream().filter(using::contains).toList(); // alphabetical
         ui.set("#NoMatches.Text", Texts.of("ui.inspectEmpty"));
         page = Paging.clamp(page, items.size(), GRID_PAGE_SIZE);
         ui.append("#Rows", GRID);
@@ -445,7 +483,10 @@ public class ChestPage extends InteractiveCustomUIPage<ChestPage.Event> {
         return items.size();
     }
 
-    /** Unlock tab: every configured unlock with progress and donate buttons. Returns the match count. */
+    /**
+     * Unlock tab: every unlock with progress and donate buttons, in {@link UnlockOrder} (completed ones
+     * last). Returns the match count.
+     */
     private int renderUnlocks(UICommandBuilder ui, UIEventBuilder events, CombinedItemContainer inventory,
                               TradeConfig config, UnlockProgress unlocks) {
         ItemFilter filter = searchFilter();
@@ -454,32 +495,24 @@ public class ChestPage extends InteractiveCustomUIPage<ChestPage.Event> {
         config.requirements().values().forEach(needed -> needed.stream().flatMap(Set::stream).distinct()
                 .forEach(u -> itemCounts.merge(u, 1, Integer::sum)));
 
-        List<String> matching = new ArrayList<>();
+        List<UnlockOrder.Entry> entries = new ArrayList<>();
         Map<String, Integer> owned = new HashMap<>();
         for (Map.Entry<String, TradeConfig.Unlock> entry : config.unlocks().entrySet()) {
             String unlockId = entry.getKey();
             boolean done = unlocks.isUnlocked(unlockId, config);
-            if (done && !showUnlocked) {
-                continue;
-            }
             int have = 0;
             for (String accepted : entry.getValue().accepts()) {
                 have += TradeService.countOwned(inventory, accepted);
             }
             owned.put(unlockId, have);
-            // "Only what I can donate": still open, and you have something that counts towards it.
-            if (canDonateOnly && (done || have == 0)) {
-                continue;
-            }
             String name = Texts.unlockNameText(unlockId, playerRef.getLanguage());
             if (filter.matches(unlockId, name, 1)) {
-                matching.add(unlockId);
+                entries.add(new UnlockOrder.Entry(unlockId, name, done, have, unlocks.donatedTo(unlockId)));
             }
         }
-        ui.set("#NoMatches.Text", Texts.of(config.unlocks().isEmpty() ? "ui.noUnlocks"
-                : !filter.words().isEmpty() ? "ui.noMatches"
-                : canDonateOnly ? "ui.nothingToDonate"
-                : "ui.allUnlocked"));
+        entries.sort(UnlockOrder.COMPARATOR);
+        List<String> matching = entries.stream().map(UnlockOrder.Entry::id).toList();
+        ui.set("#NoMatches.Text", Texts.of(config.unlocks().isEmpty() ? "ui.noUnlocks" : "ui.noMatches"));
 
         page = Paging.clamp(page, matching.size(), PAGE_SIZE);
         List<String> shown = Paging.slice(matching, page, PAGE_SIZE);
@@ -510,6 +543,22 @@ public class ChestPage extends InteractiveCustomUIPage<ChestPage.Event> {
             }
         }
         return matching.size();
+    }
+
+    /** Sorts the configured items by name in this player's language and works out their Buy groups. */
+    private void loadItems() {
+        record Loaded(String id, String name, BuyGroup group) {
+        }
+        List<Loaded> loaded = new ArrayList<>(configured.size());
+        for (String itemId : configured) {
+            Item item = Item.getAssetMap().getAsset(itemId);
+            loaded.add(item == null ? new Loaded(itemId, itemId, BuyGroup.OTHER)
+                    : new Loaded(itemId, translate(item.getTranslationKey()), BuyGroup.of(item.getCategories())));
+        }
+        loaded.sort(Comparator.comparing(Loaded::name, String.CASE_INSENSITIVE_ORDER).thenComparing(Loaded::id));
+        allItems = loaded.stream().map(Loaded::id).toList();
+        displayNames = loaded.stream().map(Loaded::name).toList();
+        itemGroups = loaded.stream().map(Loaded::group).toList();
     }
 
     /** The current tab's search. */

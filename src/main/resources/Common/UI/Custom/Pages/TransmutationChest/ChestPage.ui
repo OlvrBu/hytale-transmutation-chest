@@ -1,9 +1,9 @@
 $C = "../../Common.ui";
-$Sounds = "../../Sounds.ui";
 
 // Transmutation Chest page, laid out like the vanilla workbench: icon tabs above the window, a breadcrumb
-// title row ("Transmutation Chest > Sell") with toggles and an expanding search, then the list.
-// The server fills the texts and appends one ChestSellRow/BuyRow/UnlockRow.ui per item into #Rows.
+// title row ("Transmutation Chest > Buy") with group tabs (Buy) and an expanding search, then the list.
+// The server fills the texts and appends rows (ChestSellRow/ChestUnlockRow.ui) or a grid of
+// ChestCell.ui squares (Buy, unlock details) into #Rows.
 
 $C.@PageOverlay {}
 
@@ -15,18 +15,18 @@ Group #Window {
   TabNavigation #Tabs {
     Anchor: (Height: 66, Left: 2, Right: 0);
     Style: $C.@TopTabsStyle;
-    SelectedTab: "Sell";
-
-    TabButton {
-      Icon: "SellIcon.png";
-      TooltipText: %transmutationchest.ui.tabSell;
-      Id: "Sell";
-    }
+    SelectedTab: "Buy";
 
     TabButton {
       Icon: "BuyIcon.png";
       TooltipText: %transmutationchest.ui.tabBuy;
       Id: "Buy";
+    }
+
+    TabButton {
+      Icon: "SellIcon.png";
+      TooltipText: %transmutationchest.ui.tabSell;
+      Id: "Sell";
     }
 
     TabButton {
@@ -66,56 +66,54 @@ Group #Window {
           FlexWeight: 1;
         }
 
+        // Buy tab only (the server toggles visibility): item groups as small icon tabs, like the
+        // workbench's header tabs. Ids match BuyGroup in the code.
+        TabNavigation #Groups {
+          Anchor: (Height: 34, Right: 8);
+          Style: $C.@HeaderTabsStyle;
+          SelectedTab: "Recents";
+          Visible: false;
+
+          TabButton {
+            Icon: "GroupRecent.png";
+            TooltipText: %transmutationchest.ui.groupRecents;
+            Id: "Recents";
+          }
+
+          TabButton {
+            Icon: "GroupRocks.png";
+            TooltipText: %transmutationchest.ui.groupRocks;
+            Id: "Rocks";
+          }
+
+          TabButton {
+            Icon: "GroupWood.png";
+            TooltipText: %transmutationchest.ui.groupWood;
+            Id: "Wood";
+          }
+
+          TabButton {
+            Icon: "GroupSoil.png";
+            TooltipText: %transmutationchest.ui.groupSoil;
+            Id: "Soil";
+          }
+
+          TabButton {
+            Icon: "GroupFurniture.png";
+            TooltipText: %transmutationchest.ui.groupFurniture;
+            Id: "Furniture";
+          }
+
+          TabButton {
+            Icon: "GroupOther.png";
+            TooltipText: %transmutationchest.ui.groupOther;
+            Id: "Other";
+          }
+        }
+
         // Magnifying glass that expands into a search field (contains #SearchInput).
         // Each tab keeps its own search text (the server swaps it in on tab change).
         $C.@HeaderSearch #Search {}
-
-        // Unlock tab only (the server toggles visibility): icon checkboxes, at the far right.
-        Group #UnlockToggles {
-          LayoutMode: Left;
-          Anchor: (Width: 76, Height: 30);
-          Visible: false;
-
-          CheckBox #ShowUnlocked {
-            Anchor: (Width: 30, Height: 30, Right: 8);
-            TooltipText: %transmutationchest.ui.showUnlocked;
-            Value: false;
-            Style: (
-              Unchecked: (
-                DefaultBackground: "EyeClosed.png",
-                HoveredBackground: "EyeClosed.png",
-                PressedBackground: "EyeClosed.png",
-                ChangedSound: (SoundPath: $Sounds.@Untick, Volume: 6)
-              ),
-              Checked: (
-                DefaultBackground: "EyeOpen.png",
-                HoveredBackground: "EyeOpen.png",
-                PressedBackground: "EyeOpen.png",
-                ChangedSound: (SoundPath: $Sounds.@Tick, Volume: 6)
-              )
-            );
-          }
-
-          CheckBox #CanDonate {
-            Anchor: (Width: 30, Height: 30, Right: 8);
-            TooltipText: %transmutationchest.ui.canDonate;
-            Value: true;
-            Style: (
-              Unchecked: (
-                DefaultBackground: "CrateOff.png",
-                HoveredBackground: "CrateOff.png",
-                PressedBackground: "CrateOff.png",
-                ChangedSound: (SoundPath: $Sounds.@Untick, Volume: 6)
-              ),
-              Checked: (
-                DefaultBackground: "CrateOn.png",
-                HoveredBackground: "CrateOn.png",
-                PressedBackground: "CrateOn.png",
-                ChangedSound: (SoundPath: $Sounds.@Tick, Volume: 6)
-              )
-            );
-          }
-        }
 
       }
     }

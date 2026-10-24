@@ -43,18 +43,21 @@ Craft it at the **Arcanist's Workbench** (Misc tab), 3 seconds:
 
 Use the chest (interact key) to open it. The screen has three tabs:
 
-- **Sell:** the unlocked items you have, with **Sell 1 / Sell all**. Items are taken from anywhere
-  in your inventory (hotbar, storage, backpack).
-- **Buy:** all unlocked items, with **Buy 1 / Buy *stack*** (one item or a full stack).
+- **Buy** (always opens first): all unlocked items as a grid of squares with their price, in groups.
+  **Recents** (opens first) holds what you last bought at any chest (kept until the server
+  restarts); Rocks, Wood, Soil & Clay, Furniture and Other come from the items' creative-menu categories.
+  Click buys 1, Shift+Click or right-click buys a stack.
+- **Sell:** the unlocked items you have, one row each with **Sell 1 / Sell all** (Shift+Click on
+  Sell 1 sells a stack). Items are taken from anywhere in your inventory (hotbar, storage, backpack).
 - **Unlock:** one row per unlock, with its progress (e.g. 320 / 500), how many items it opens up,
-  and **Donate 1 / Donate all**. Two filters, both on by default:
-  - **Hide unlocked**
-  - **Only what I can donate**
+  and **Donate 1 / Donate all**. Unlocks you have materials for come first, then ones with progress,
+  then untouched ones, and completed ones last.
 
-  Donations stop at the required amount. A chest with nothing unlocked opens on this tab.
+  Donations stop at the required amount.
 
 All tabs have a **search** box that matches item names and IDs; every word must match, e.g.
-`sand brick`. Results are shown 30 per page.
+`sand brick`; on the Buy tab it searches all groups. Items and unlocks are sorted alphabetically
+within their group, and shown one page at a time.
 
 All open screens of a chest update when anyone trades or donates. Every action is checked again on
 the server at the moment it happens, and it's all-or-nothing: if your inventory can't fit a

@@ -15,6 +15,7 @@ import io.github.obut.transmutationchest.chest.ChestLifecycleSystem;
 import io.github.obut.transmutationchest.chest.ChestUseInteraction;
 import io.github.obut.transmutationchest.chest.TradeService;
 import io.github.obut.transmutationchest.ui.ChestViewers;
+import io.github.obut.transmutationchest.ui.RecentItems;
 
 import javax.annotation.Nonnull;
 import java.nio.file.Files;
@@ -33,6 +34,7 @@ public class TransmutationChestPlugin extends JavaPlugin {
     private TradeService tradeService;
     private PriceGenerationService priceGeneration;
     private final ChestViewers chestViewers = new ChestViewers();
+    private final RecentItems recentItems = new RecentItems();
 
     public TransmutationChestPlugin(@Nonnull JavaPluginInit init) {
         super(init);
@@ -58,6 +60,10 @@ public class TransmutationChestPlugin extends JavaPlugin {
 
     public ChestViewers getChestViewers() {
         return chestViewers;
+    }
+
+    public RecentItems getRecentItems() {
+        return recentItems;
     }
 
     @Override
