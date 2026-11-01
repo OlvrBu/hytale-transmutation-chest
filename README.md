@@ -67,7 +67,7 @@ purchase, nothing is bought and the balance isn't touched.
 
 1. Build the jar (see [Development](#development)) or take `transmutationchest-<version>.jar` from a release.
 2. Put it in the server's `mods/` folder (singleplayer: `UserData/Mods/`).
-3. Start the server. On first start the plugin creates its data folder `mods/obut_transmutationchest/`:
+3. Start the server. On first start the plugin creates its data folder `mods/olvrbu_transmutationchest/`:
    - `price_seeds.json`: the default raw-material prices and unlock settings.
    - `tradeables.json`: **generated from this server's recipes**, including other installed mods.
      If generation fails, the default list bundled in the jar is used instead.
@@ -77,7 +77,7 @@ purchase, nothing is bought and the balance isn't touched.
 ## Commands
 
 All commands are under `/transmutationchest` (short alias: `/tchest`) and are **operator-only** by default. Each has an automatic
-permission node such as `obut.transmutationchest.command.transmutationchest.reload`. `reload`,
+permission node such as `olvrbu.transmutationchest.command.transmutationchest.reload`. `reload`,
 `generateprices`, `checkprices`, `spread` and the `item` / `unlockdef` commands also work from the
 server console. Together they can build a complete `tradeables.json` in game.
 
@@ -194,7 +194,7 @@ The rules:
   from. Where a recipe accepts several equally cheap materials (e.g. "any hardwood log"), any one
   of their unlocks is enough.
 
-It writes two files to `mods/obut_transmutationchest/generated/`:
+It writes two files to `mods/olvrbu_transmutationchest/generated/`:
 
 - `tradeables.generated.json` is the proposed price list.
 - `tradeables.generated.report.txt` contains:
@@ -240,7 +240,7 @@ are in [`CLAUDE.md`](CLAUDE.md).
 ### Code layout
 
 ```
-src/main/java/io/github/obut/transmutationchest/
+src/main/java/io/github/olvrbu/transmutationchest/
   TransmutationChestPlugin.java     entry point: registers components, systems, interactions, commands
   config/                     tradeables.json: parsing, validation, loading/reloading
   pricing/                    price and balance math (plain Java)
