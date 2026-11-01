@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.2.0 (2026-11-01)
 
 - Requires Hytale **0.7.5** or newer (was 0.7.2).
 - The mod's ID changed from `obut:transmutationchest` to `olvrbu:transmutationchest` (new author
